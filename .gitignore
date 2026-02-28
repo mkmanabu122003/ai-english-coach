@@ -1,0 +1,24 @@
+node_modules/
+lib/
+.env
+.env.local
+*.js.map
+*.d.ts
+*.js
+!jest.config.js
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1 @@
+// Weekly report generation prompts
