@@ -5,15 +5,7 @@ import { validateSignature, replyText, getProfile } from "../services/line";
 import { createUser, getUser, updateUser } from "../services/firestore";
 import { getSecret } from "../config/secrets";
 import { handleTextChat } from "./textChat";
-
-// voiceChat は未実装のため、実装後に差し替え
-async function handleVoiceChat(
-  _userId: string,
-  _messageId: string,
-  replyToken: string
-): Promise<void> {
-  await replyText(replyToken, "音声機能は準備中です。もう少しお待ちください。");
-}
+import { handleVoiceChat } from "./voiceChat";
 
 const WELCOME_MESSAGE =
   "こんにちは！AI English Coachです 🎓\n" +
@@ -92,6 +84,7 @@ async function processEvent(
           type: string;
           text?: string;
           id?: string;
+          duration?: number;
         } | undefined;
         if (!message || !replyToken) {
           break;
@@ -100,7 +93,7 @@ async function processEvent(
         if (message.type === "text" && message.text) {
           await handleTextChat(userId, message.text, replyToken);
         } else if (message.type === "audio" && message.id) {
-          await handleVoiceChat(userId, message.id, replyToken);
+          await handleVoiceChat(userId, message.id, replyToken, message.duration);
         }
         // その他のメッセージタイプは無視
         break;
