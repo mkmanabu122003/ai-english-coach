@@ -104,6 +104,11 @@ async function processEvent(
         break;
     }
   } catch (err) {
-    logger.error("Event processing error", { eventType, userId, error: err });
+    logger.error("Event processing error", {
+      eventType,
+      userId,
+      error: err instanceof Error ? err.message : err,
+      stack: err instanceof Error ? err.stack : undefined,
+    });
   }
 }

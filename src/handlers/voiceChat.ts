@@ -1,3 +1,4 @@
+import * as logger from "firebase-functions/logger";
 import {
   getUser,
   createUser,
@@ -54,7 +55,16 @@ export async function handleVoiceChat(
     const audioBuffer = await getContent(messageId);
 
     // 5. transcribeAudio で文字起こし
+    const whisperStartMs = Date.now();
     const transcription = await transcribeAudio(audioBuffer);
+    const whisperLatencyMs = Date.now() - whisperStartMs;
+
+    logger.info("API call completed", {
+      userId,
+      type: "voice_chat",
+      model: "whisper-1",
+      latencyMs: whisperLatencyMs,
+    });
 
     // 6. 空文字 or 5文字以下 → 聞き取れなかった旨を返して終了
     if (!transcription || transcription.trim().length <= 5) {
@@ -72,7 +82,18 @@ export async function handleVoiceChat(
       { role: "user", content: transcription },
     ];
 
+    const chatStartMs = Date.now();
     const result = await chatCompletion(messages);
+    const chatLatencyMs = Date.now() - chatStartMs;
+
+    logger.info("API call completed", {
+      userId,
+      type: "voice_chat",
+      model: "gpt-4o",
+      promptTokens: result.usage.promptTokens,
+      completionTokens: result.usage.completionTokens,
+      latencyMs: chatLatencyMs,
+    });
 
     // 8. replyText
     await replyText(replyToken, result.text);

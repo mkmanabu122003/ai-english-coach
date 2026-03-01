@@ -64,6 +64,13 @@ async function sendDailyPush(user: User, todayJST: string): Promise<void> {
     const message = `${nudgeMessage}\n\n🗣️ ${question.question}`;
     await pushText(user.lineUserId, message);
 
+    logger.info("Push sent", {
+      userId: user.lineUserId,
+      type: "daily_push",
+      nudgeType,
+      questionId: question.id,
+    });
+
     // recentQuestions更新（7件超えたら古いのを削除）
     const updatedRecent = [...user.recentQuestions, question.id];
     if (updatedRecent.length > 7) {
@@ -73,7 +80,9 @@ async function sendDailyPush(user: User, todayJST: string): Promise<void> {
   } catch (err) {
     logger.error("dailyPush: failed for user", {
       userId: user.lineUserId,
-      error: err,
+      type: "daily_push",
+      error: err instanceof Error ? err.message : err,
+      stack: err instanceof Error ? err.stack : undefined,
     });
   }
 }
@@ -169,10 +178,21 @@ async function sendWeeklyReport(user: User): Promise<void> {
       topTopics,
     });
 
+    const startMs = Date.now();
     const result = await chatCompletion(
       [{ role: "user", content: prompt }],
       200
     );
+    const latencyMs = Date.now() - startMs;
+
+    logger.info("API call completed", {
+      userId: user.lineUserId,
+      type: "weekly_report",
+      model: "gpt-4o",
+      promptTokens: result.usage.promptTokens,
+      completionTokens: result.usage.completionTokens,
+      latencyMs,
+    });
 
     // フォーマットして送信
     const reportText =
@@ -198,7 +218,9 @@ async function sendWeeklyReport(user: User): Promise<void> {
   } catch (err) {
     logger.error("weeklyReport: failed for user", {
       userId: user.lineUserId,
-      error: err,
+      type: "weekly_report",
+      error: err instanceof Error ? err.message : err,
+      stack: err instanceof Error ? err.stack : undefined,
     });
   }
 }

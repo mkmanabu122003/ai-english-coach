@@ -9,7 +9,10 @@ export async function withErrorHandling(
   try {
     await handler();
   } catch (err) {
-    logger.error("Handler error", { error: err });
+    logger.error("Handler error", {
+      error: err instanceof Error ? err.message : err,
+      stack: err instanceof Error ? err.stack : undefined,
+    });
 
     let userMessage: string;
 
@@ -30,7 +33,10 @@ export async function withErrorHandling(
     try {
       await replyText(replyToken, userMessage);
     } catch (replyErr) {
-      logger.error("Failed to send error reply", { error: replyErr });
+      logger.error("Failed to send error reply", {
+        error: replyErr instanceof Error ? replyErr.message : replyErr,
+        stack: replyErr instanceof Error ? replyErr.stack : undefined,
+      });
     }
   }
 }

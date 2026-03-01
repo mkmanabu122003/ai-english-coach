@@ -71,7 +71,18 @@ export async function handleTextChat(
       { role: "user", content: sanitized },
     ];
 
+    const startMs = Date.now();
     const result = await chatCompletion(messages);
+    const latencyMs = Date.now() - startMs;
+
+    logger.info("API call completed", {
+      userId,
+      type: "text_chat",
+      model: "gpt-4o",
+      promptTokens: result.usage.promptTokens,
+      completionTokens: result.usage.completionTokens,
+      latencyMs,
+    });
 
     // 7. englishLevel "unset" ならレベル抽出・更新
     let responseText = result.text;
