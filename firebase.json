@@ -1,0 +1,19 @@
+{
+  "functions": {
+    "source": ".",
+    "runtime": "nodejs20",
+    "codebase": "ai-english-coach",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "src",
+      ".env",
+      ".env.local",
+      "*.ts",
+      "!lib/**/*.js"
+    ]
+  },
+  "firestore": {
+    "indexes": "firestore.indexes.json"
+  }
+}
