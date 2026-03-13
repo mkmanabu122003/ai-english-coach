@@ -188,7 +188,7 @@ async function sendWeeklyReport(user: User): Promise<void> {
     logger.info("API call completed", {
       userId: user.lineUserId,
       type: "weekly_report",
-      model: "gpt-4o",
+      model: "claude-sonnet-4",
       promptTokens: result.usage.promptTokens,
       completionTokens: result.usage.completionTokens,
       latencyMs,

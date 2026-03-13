@@ -1,0 +1,16 @@
+node_modules/
+.git/
+src/
+.env
+.env.local
+*.ts
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

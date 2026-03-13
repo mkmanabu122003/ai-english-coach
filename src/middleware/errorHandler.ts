@@ -1,5 +1,5 @@
 import * as logger from "firebase-functions/logger";
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { replyText } from "../services/line";
 
 export async function withErrorHandling(
@@ -20,7 +20,7 @@ export async function withErrorHandling(
       userMessage =
         "少々お待ちください…もう一度お試しいただけますか？";
     } else if (
-      err instanceof OpenAI.APIError &&
+      err instanceof Anthropic.APIError &&
       err.status === 429
     ) {
       userMessage =
