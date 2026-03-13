@@ -78,7 +78,7 @@ export async function handleTextChat(
     logger.info("API call completed", {
       userId,
       type: "text_chat",
-      model: "gpt-4o",
+      model: "claude-sonnet-4",
       promptTokens: result.usage.promptTokens,
       completionTokens: result.usage.completionTokens,
       latencyMs,

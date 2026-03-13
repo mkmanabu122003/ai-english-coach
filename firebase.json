@@ -9,9 +9,9 @@
       "src",
       ".env",
       ".env.local",
-      "*.ts",
-      "!lib/**/*.js"
-    ]
+      "*.ts"
+    ],
+    "predeploy": "npm run build"
   },
   "firestore": {
     "indexes": "firestore.indexes.json"

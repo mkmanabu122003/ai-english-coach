@@ -1,24 +1,25 @@
-import OpenAI, { toFile } from "openai";
+import Anthropic from "@anthropic-ai/sdk";
+import speech from "@google-cloud/speech";
 import { getSecret } from "../config/secrets";
 import {
-  OPENAI_MAX_TOKENS,
-  OPENAI_TIMEOUT_MS,
+  AI_MAX_TOKENS,
+  AI_TIMEOUT_MS,
   MAX_RETRIES,
 } from "../config/constants";
 
-let client: OpenAI | null = null;
+let client: Anthropic | null = null;
 
-async function getClient(): Promise<OpenAI> {
+async function getClient(): Promise<Anthropic> {
   if (!client) {
-    const apiKey = await getSecret("OPENAI_API_KEY");
-    client = new OpenAI({ apiKey, timeout: OPENAI_TIMEOUT_MS });
+    const apiKey = await getSecret("ANTHROPIC_API_KEY");
+    client = new Anthropic({ apiKey, timeout: AI_TIMEOUT_MS });
   }
   return client;
 }
 
 function isRetryable(err: unknown): boolean {
-  if (err instanceof OpenAI.APIError) {
-    return err.status === 429 || err.status === 500 || err.status === 503;
+  if (err instanceof Anthropic.APIError) {
+    return err.status === 429 || err.status === 500 || err.status === 529;
   }
   if (err instanceof Error && err.name === "AbortError") {
     return true;
@@ -27,8 +28,8 @@ function isRetryable(err: unknown): boolean {
 }
 
 function getRetryAfterMs(err: unknown): number | null {
-  if (err instanceof OpenAI.APIError && err.status === 429) {
-    const header = err.headers?.["retry-after"];
+  if (err instanceof Anthropic.APIError && err.status === 429) {
+    const header = (err.headers as Record<string, string>)?.["retry-after"];
     if (header) {
       const seconds = Number(header);
       if (!Number.isNaN(seconds)) {
@@ -55,24 +56,34 @@ export async function chatCompletion(
   messages: Array<{ role: string; content: string }>,
   maxTokens?: number
 ): Promise<ChatCompletionResult> {
-  const openai = await getClient();
+  const anthropic = await getClient();
   let lastError: unknown;
+
+  // Separate system message from conversation messages
+  const systemMessage = messages.find((m) => m.role === "system");
+  const conversationMessages = messages
+    .filter((m) => m.role !== "system")
+    .map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: messages as OpenAI.ChatCompletionMessageParam[],
-        max_tokens: maxTokens ?? OPENAI_MAX_TOKENS,
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        system: systemMessage?.content,
+        messages: conversationMessages,
+        max_tokens: maxTokens ?? AI_MAX_TOKENS,
         temperature: 0.7,
       });
 
-      const choice = response.choices[0];
+      const textBlock = response.content.find((b) => b.type === "text");
       return {
-        text: choice?.message?.content ?? "",
+        text: textBlock?.type === "text" ? textBlock.text : "",
         usage: {
-          promptTokens: response.usage?.prompt_tokens ?? 0,
-          completionTokens: response.usage?.completion_tokens ?? 0,
+          promptTokens: response.usage.input_tokens,
+          completionTokens: response.usage.output_tokens,
         },
       };
     } catch (err) {
@@ -92,23 +103,32 @@ export async function chatCompletion(
 export async function transcribeAudio(
   audioBuffer: Buffer
 ): Promise<string> {
-  const openai = await getClient();
+  const speechClient = new speech.SpeechClient();
   let lastError: unknown;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const file = await toFile(audioBuffer, "audio.m4a", {
-        type: "audio/m4a",
+      const audioBytes = audioBuffer.toString("base64");
+      const [response] = await speechClient.recognize({
+        audio: { content: audioBytes },
+        config: {
+          encoding: "OGG_OPUS" as const,
+          sampleRateHertz: 16000,
+          languageCode: "en-US",
+          model: "latest_long",
+          enableAutomaticPunctuation: true,
+        },
       });
-      const response = await openai.audio.transcriptions.create({
-        model: "whisper-1",
-        file,
-        language: "en",
-      });
-      return response.text;
+
+      const transcription = response.results
+        ?.map((result) => result.alternatives?.[0]?.transcript)
+        .filter(Boolean)
+        .join(" ");
+
+      return transcription ?? "";
     } catch (err) {
       lastError = err;
-      if (!isRetryable(err) || attempt === MAX_RETRIES - 1) {
+      if (attempt === MAX_RETRIES - 1) {
         break;
       }
       const backoffMs = 1000 * Math.pow(2, attempt);

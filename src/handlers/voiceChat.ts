@@ -62,7 +62,7 @@ export async function handleVoiceChat(
     logger.info("API call completed", {
       userId,
       type: "voice_chat",
-      model: "whisper-1",
+      model: "google-speech-to-text",
       latencyMs: whisperLatencyMs,
     });
 
@@ -89,7 +89,7 @@ export async function handleVoiceChat(
     logger.info("API call completed", {
       userId,
       type: "voice_chat",
-      model: "gpt-4o",
+      model: "claude-sonnet-4",
       promptTokens: result.usage.promptTokens,
       completionTokens: result.usage.completionTokens,
       latencyMs: chatLatencyMs,

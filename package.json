@@ -16,7 +16,8 @@
     "@line/bot-sdk": "^9.7.0",
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^6.3.0",
-    "openai": "^4.85.0"
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@google-cloud/speech": "^6.7.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",
