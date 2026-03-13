@@ -96,7 +96,23 @@ export async function handleTextChat(
       }
     }
 
-    // 8. replyText
+    // 8. replyText — 初回返信にはヒント、テキスト3回ごとに音声促進を追加
+    if (user.totalChats === 0) {
+      responseText +=
+        "\n\n──────\n" +
+        "💡 ヒント: 毎朝、今日の練習問題が届きます。\n" +
+        "通知時間の変更は「通知設定 08:00」のように送ってください。";
+    } else {
+      const todayTextCount = rateLimit.resetNeeded ? 1 : user.dailyTextCount + 1;
+      const todayVoiceCount = rateLimit.resetNeeded ? 0 : user.dailyVoiceCount;
+      if (todayTextCount % 3 === 0 && todayVoiceCount === 0) {
+        responseText +=
+          "\n\n──────\n" +
+          "🎤 テキストでの練習、順調ですね！\n" +
+          "次は同じ内容を音声で言ってみましょう。\n" +
+          "通訳ガイドは「話す力」が最重要です！";
+      }
+    }
     await replyText(replyToken, responseText);
 
     // 9. addChatLog
@@ -129,6 +145,23 @@ function handleCommand(
   text: string,
   user: User
 ): { reply: string; updates?: Partial<User> } | null {
+  // 「通知設定 HH:MM」コマンド
+  const pushTimeMatch = text.match(/^通知設定\s+(\d{1,2}):(\d{2})$/);
+  if (pushTimeMatch) {
+    const hour = parseInt(pushTimeMatch[1], 10);
+    const minute = parseInt(pushTimeMatch[2], 10);
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      return {
+        reply: "時刻の形式が正しくありません。例: 通知設定 08:00",
+      };
+    }
+    const newTime = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    return {
+      reply: `通知時間を ${newTime} に変更しました`,
+      updates: { pushTime: newTime },
+    };
+  }
+
   switch (text) {
     case "通知オフ":
       return {
@@ -156,6 +189,7 @@ function handleCommand(
           "・日本語で質問もできます\n\n" +
           "【コマンド】\n" +
           "・通知オン / 通知オフ\n" +
+          "・通知設定 HH:MM（例: 通知設定 21:00）\n" +
           "・レベル確認\n" +
           "・ヘルプ",
       };

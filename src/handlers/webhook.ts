@@ -8,10 +8,15 @@ import { handleTextChat } from "./textChat";
 import { handleVoiceChat } from "./voiceChat";
 
 const WELCOME_MESSAGE =
-  "こんにちは！AI English Coachです 🎓\n" +
-  "英文を送ると添削します。音声メッセージもOKです。\n" +
-  "まずはこれを英語で答えてみてください👇\n" +
-  "「外国人観光客に鳥居を説明するとしたら、どう言いますか？」";
+  "はじめまして！AI English Coach です 🎓\n" +
+  "通訳ガイドの英語力アップをお手伝いします。\n\n" +
+  "このBotでできること：\n" +
+  "📝 英文を送ると → 添削＋ガイド向け表現を提案\n" +
+  "🎤 音声を送ると → 発音チェック＋改善ポイント\n" +
+  "📊 毎週日曜に → 学習レポートをお届け\n\n" +
+  "さっそく始めましょう！\n" +
+  "まずは英語であなたの自己紹介をしてください。\n" +
+  '例: "Hi, I\'m [名前]. I\'ve been a tour guide for [X] years."';
 
 export async function webhookHandler(
   req: Request,
