@@ -58,8 +58,8 @@ async function sendDailyPush(user: User, todayJST: string): Promise<void> {
     const nudgeType = determineNudgeType(user, todayJST);
     const nudgeMessage = getNudgeMessage(nudgeType);
 
-    // 質問選択: recentQuestionsに含まれない質問をランダム選択
-    const question = pickQuestion(user.recentQuestions);
+    // 質問選択: レベルに合った、recentQuestionsに含まれない質問をランダム選択
+    const question = pickQuestion(user.recentQuestions, user.englishLevel);
 
     const message = `${nudgeMessage}\n\n🗣️ ${question.question}`;
     await pushText(user.lineUserId, message);
