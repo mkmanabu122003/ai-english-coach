@@ -10,7 +10,7 @@ import {
 } from "../services/firestore";
 import { getProfile, replyText } from "../services/line";
 import { chatCompletion } from "../services/openai";
-import { buildSystemPrompt, extractLevel } from "../prompts/systemPrompt";
+import { buildSystemPrompt, extractLevel, shouldReassessLevel } from "../prompts/systemPrompt";
 import { withErrorHandling } from "../middleware/errorHandler";
 import { checkRateLimit } from "../middleware/rateLimiter";
 import { sanitizeTextInput } from "../middleware/validator";
@@ -92,34 +92,49 @@ export async function handleTextChat(
       latencyMs,
     });
 
-    // 7. englishLevel "unset" ならレベル抽出・更新 + levelHistory記録
+    // 7. レベル抽出・更新（初回判定 or 定期再判定）
     let responseText = result.text;
-    if (user.englishLevel === "unset") {
+    if (user.englishLevel === "unset" || shouldReassessLevel(user)) {
       const { level, cleanResponse } = extractLevel(responseText);
       responseText = cleanResponse;
-      if (level) {
+      if (level && level !== user.englishLevel) {
         const { Timestamp: Ts } = await import("firebase-admin/firestore");
-        await updateUser(userId, {
+        const previousLevel = user.englishLevel;
+        const updates: Partial<User> = {
           englishLevel: level as User["englishLevel"],
           levelHistory: [
             ...(user.levelHistory ?? []),
             { level, changedAt: Ts.now() },
           ],
-          onboardingStatus: {
+        };
+        if (user.englishLevel === "unset") {
+          updates.onboardingStatus = {
             ...(user.onboardingStatus ?? { firstText: false, levelSet: false, pushTimeSet: false, firstVoice: false, streak3: false }),
             levelSet: true,
-          },
-        }, lang);
+          };
+        }
+        await updateUser(userId, updates, lang);
+
+        // レベルアップ通知（初回判定時は除く）
+        if (previousLevel !== "unset") {
+          const levelNames: Record<string, string> = {
+            beginner: "Beginner",
+            intermediate: "Intermediate",
+            advanced: "Advanced",
+          };
+          responseText += `\n\n🎊 レベルアップ！ ${levelNames[previousLevel] ?? previousLevel} → ${levelNames[level] ?? level}\nこれまでの努力の成果です！`;
+        }
       }
     }
 
-    // 8. replyText — 初回返信にはヒント、テキスト3回ごとに音声促進を追加
+    // 8. replyText — 初回返信にはヒント、テキスト3回ごと（添削時のみ）に音声促進を追加
     if (user.totalChats === 0) {
       responseText += strings.firstChatHint;
     } else {
       const todayTextCount = rateLimit.resetNeeded ? 1 : user.dailyTextCount + 1;
       const todayVoiceCount = rateLimit.resetNeeded ? 0 : user.dailyVoiceCount;
-      if (todayTextCount % 3 === 0 && todayVoiceCount === 0) {
+      const isCorrection = responseText.includes("📝");
+      if (todayTextCount % 3 === 0 && todayVoiceCount === 0 && isCorrection) {
         responseText += strings.voicePromptMessage;
       }
     }

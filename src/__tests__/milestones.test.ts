@@ -132,11 +132,59 @@ describe("checkMilestones", () => {
     expect(result.ids).not.toContain("first_voice");
   });
 
+  it("should detect streak_14 milestone", () => {
+    const user = makeUser({ achievedMilestones: ["first_chat", "streak_3", "streak_7"] });
+    const ctx: MilestoneContext = {
+      chatType: "text",
+      newStreak: 14,
+      newTotalChats: 30,
+      newTotalVoice: 0,
+    };
+    const result = checkMilestones(user, ctx);
+    expect(result.ids).toContain("streak_14");
+  });
+
+  it("should detect total_10 milestone", () => {
+    const user = makeUser({ achievedMilestones: ["first_chat"] });
+    const ctx: MilestoneContext = {
+      chatType: "text",
+      newStreak: 3,
+      newTotalChats: 8,
+      newTotalVoice: 2,
+    };
+    const result = checkMilestones(user, ctx);
+    expect(result.ids).toContain("total_10");
+  });
+
+  it("should detect total_30 milestone", () => {
+    const user = makeUser({ achievedMilestones: ["first_chat", "total_10"] });
+    const ctx: MilestoneContext = {
+      chatType: "text",
+      newStreak: 5,
+      newTotalChats: 25,
+      newTotalVoice: 5,
+    };
+    const result = checkMilestones(user, ctx);
+    expect(result.ids).toContain("total_30");
+  });
+
+  it("should detect total_50 milestone", () => {
+    const user = makeUser({ achievedMilestones: ["first_chat", "total_10", "total_30"] });
+    const ctx: MilestoneContext = {
+      chatType: "text",
+      newStreak: 10,
+      newTotalChats: 40,
+      newTotalVoice: 10,
+    };
+    const result = checkMilestones(user, ctx);
+    expect(result.ids).toContain("total_50");
+  });
+
   it("should return empty when no new milestones", () => {
     const user = makeUser({
       achievedMilestones: [
-        "first_chat", "streak_3", "streak_7", "streak_30",
-        "total_100", "first_voice",
+        "first_chat", "streak_3", "streak_7", "streak_14", "streak_30",
+        "total_10", "total_30", "total_50", "total_100", "first_voice",
       ],
     });
     const ctx: MilestoneContext = {

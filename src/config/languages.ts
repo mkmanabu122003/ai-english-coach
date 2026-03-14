@@ -60,7 +60,11 @@ export interface LanguageStrings {
     firstChat: string;
     streak3: string;
     streak7: string;
+    streak14: string;
     streak30: string;
+    total10: string;
+    total30: string;
+    total50: string;
     total100: string;
     firstVoice: string;
   };
@@ -140,21 +144,22 @@ const EN_STRINGS: LanguageStrings = {
   voiceNotRecognizedMessage: "音声が聞き取れませんでした。もう少しはっきり話してみてください",
 
   rateLimitFreeText: (max: number) =>
-    `本日の無料プランのテキスト上限（${max}回）に達しました。\n` +
-    "Bot Proプランにアップグレードすると、1日20回まで利用できます。",
+    `本日の練習（${max}回）おつかれさまでした！\n` +
+    "今日学んだ表現を実際のガイドで使ってみてください。\n\n" +
+    "もっと練習したい方はBot Proプランで1日20回まで利用できます。",
   rateLimitProText: (max: number, voiceRemaining: number) =>
-    `本日のテキスト上限（${max}回）に達しました。` +
+    `本日のテキスト（${max}回）おつかれさまでした！` +
     (voiceRemaining > 0
       ? `\nボイスチャットはあと${voiceRemaining}回使えます🎤`
-      : "\nボイスチャットも上限に達しています。また明日お話ししましょう！"),
+      : "\n今日もたくさん練習しましたね。また明日お話ししましょう！"),
   rateLimitFreeVoice:
     "音声練習はBot Proプランで利用できます。\n" +
     "テキストで英文を送ると添削します📝",
   rateLimitProVoice: (max: number, textRemaining: number) =>
-    `本日のボイス上限（${max}回）に達しました。` +
+    `本日のボイス（${max}回）おつかれさまでした！` +
     (textRemaining > 0
       ? `\nテキストチャットはあと${textRemaining}回使えます💬`
-      : "\nテキストチャットも上限に達しています。また明日お話ししましょう！"),
+      : "\n今日もたくさん練習しましたね。また明日お話ししましょう！"),
 
   errorAbort: "少々お待ちください…もう一度お試しいただけますか？",
   errorRateLimit: "ただいま混み合っています。1分後にもう一度お試しください。",
@@ -164,7 +169,11 @@ const EN_STRINGS: LanguageStrings = {
     firstChat: "🎉 最初の一歩を踏み出しました！毎日少しずつ続けていきましょう！",
     streak3: "🔥 3日連続達成！いい調子です！",
     streak7: "⭐ 1週間連続達成！習慣化の第一歩です！",
+    streak14: "🌟 2週間連続達成！英語が習慣になってきましたね！",
     streak30: "🏆 30日連続達成！素晴らしい継続力です！",
+    total10: "📚 10回達成！着実に前進しています！",
+    total30: "💪 30回達成！表現の幅が広がってきましたね！",
+    total50: "🎯 50回達成！ガイドの英語力が確実にアップしています！",
     total100: "💯 チャット100回突破！確実に力がついています！",
     firstVoice: "🎤 初めての音声練習クリア！話す力が伸びます！",
   },
@@ -285,7 +294,11 @@ const ES_STRINGS: LanguageStrings = {
     firstChat: "🎉 最初の一歩を踏み出しました！毎日少しずつ続けていきましょう！",
     streak3: "🔥 3日連続達成！いい調子です！",
     streak7: "⭐ 1週間連続達成！習慣化の第一歩です！",
+    streak14: "🌟 2週間連続達成！英語が習慣になってきましたね！",
     streak30: "🏆 30日連続達成！素晴らしい継続力です！",
+    total10: "📚 10回達成！着実に前進しています！",
+    total30: "💪 30回達成！表現の幅が広がってきましたね！",
+    total50: "🎯 50回達成！ガイドの英語力が確実にアップしています！",
     total100: "💯 チャット100回突破！確実に力がついています！",
     firstVoice: "🎤 初めての音声練習クリア！話す力が伸びます！",
   },
