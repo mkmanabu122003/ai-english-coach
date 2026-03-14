@@ -21,11 +21,13 @@ import { HealthScoreBadge } from "@/components/users/HealthScoreBadge";
 import { OnboardingProgress } from "@/components/users/OnboardingProgress";
 import { PlanChangeDialog } from "@/components/users/PlanChangeDialog";
 
-function formatTimestamp(ts: { _seconds: number; _nanoseconds: number }): string {
+function formatTimestamp(ts: { _seconds: number; _nanoseconds: number } | null | undefined): string {
+  if (!ts || typeof ts._seconds !== "number") return "-";
   return new Date(ts._seconds * 1000).toLocaleString("ja-JP");
 }
 
-function formatDate(ts: { _seconds: number; _nanoseconds: number }): string {
+function formatDate(ts: { _seconds: number; _nanoseconds: number } | null | undefined): string {
+  if (!ts || typeof ts._seconds !== "number") return "-";
   return new Date(ts._seconds * 1000).toLocaleDateString("ja-JP");
 }
 
@@ -236,7 +238,7 @@ export default function UserDetailPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{user.displayName}</h1>
           <div className="flex flex-wrap items-center gap-2 mt-2">
-            <Badge variant="outline">{user.language.toUpperCase()}</Badge>
+            <Badge variant="outline">{user.language?.toUpperCase() ?? "N/A"}</Badge>
             <Badge variant={user.plan === "bot_pro" ? "default" : "secondary"}>
               {user.plan === "bot_pro" ? "Bot Pro" : "Free"}
             </Badge>

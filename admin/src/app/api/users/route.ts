@@ -18,7 +18,9 @@ export async function GET(request: NextRequest) {
     const lang = searchParams.get("lang") || "en";
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)));
-    const sort = searchParams.get("sort") || "createdAt";
+    const allowedSortFields = ["createdAt", "displayName", "language", "plan", "englishLevel", "healthScore", "currentStreak", "lastActiveDate", "totalChats"];
+    const sortParam = searchParams.get("sort") || "createdAt";
+    const sort = allowedSortFields.includes(sortParam) ? sortParam : "createdAt";
     const order = searchParams.get("order") === "asc" ? "asc" : "desc";
     const plan = searchParams.get("plan");
     const level = searchParams.get("level");

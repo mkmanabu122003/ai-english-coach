@@ -31,6 +31,17 @@ export async function POST(
       );
     }
 
+    if (content.length > 5000) {
+      return NextResponse.json(
+        { error: "Message content must be 5000 characters or less" },
+        { status: 400 }
+      );
+    }
+
+    if (!["en", "es"].includes(lang)) {
+      return NextResponse.json({ error: "Invalid language" }, { status: 400 });
+    }
+
     const db = getAdminDb();
     const collectionName = getCollectionName(lang);
     const userRef = db.collection(collectionName).doc(userId);

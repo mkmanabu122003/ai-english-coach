@@ -63,6 +63,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const validLevels = ["beginner", "intermediate", "advanced"];
+    const validLanguages = ["en", "es"];
+    if (!validLevels.includes(level)) {
+      return NextResponse.json({ error: "Invalid level" }, { status: 400 });
+    }
+    if (!validLanguages.includes(language)) {
+      return NextResponse.json({ error: "Invalid language" }, { status: 400 });
+    }
+    if (typeof question !== "string" || question.length > 1000) {
+      return NextResponse.json({ error: "Question must be 1000 characters or less" }, { status: 400 });
+    }
+
     const db = getAdminDb();
     const docRef = await db.collection("questions").add({
       category,

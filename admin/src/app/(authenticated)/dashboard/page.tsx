@@ -46,10 +46,16 @@ export default function DashboardPage() {
     async function fetchData() {
       setLoading(true);
       try {
+        // Build date range for last 30 days
+        const now = new Date();
+        const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+        const end = jstNow.toISOString().slice(0, 10);
+        const start30 = new Date(jstNow.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
         const [todayRes, rangeRes, churnRes] = await Promise.all([
           fetch("/api/stats/daily"),
-          fetch("/api/stats/range"),
-          fetch("/api/users?preset=churnRisk&limit=5&lang=en"),
+          fetch(`/api/stats/range?start=${start30}&end=${end}`),
+          fetch(`/api/users?preset=churnRisk&limit=5&lang=${lang}`),
         ]);
 
         if (todayRes.ok) {
@@ -78,7 +84,7 @@ export default function DashboardPage() {
     }
 
     fetchData();
-  }, []);
+  }, [lang]);
 
   if (loading) {
     return (

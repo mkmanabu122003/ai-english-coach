@@ -81,12 +81,14 @@ export default function BroadcastPage() {
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      // Fetch broadcast history from adminActions
-      const res = await fetch("/api/stats/daily");
-      // We'll try a simple approach - the broadcast history might be fetched through a different route
-      // For now, we use what's available
+      const res = await fetch("/api/users?preset=churnRisk&limit=1");
       if (res.ok) {
-        // History is loaded from adminActions collection
+        // Fetch broadcast history from admin actions API
+        const actionsRes = await fetch(`/api/users/broadcast-history?limit=20`);
+        if (actionsRes.ok) {
+          const data = await actionsRes.json();
+          setHistory(Array.isArray(data) ? data : data.actions ?? []);
+        }
       }
     } catch (err) {
       console.error("Error fetching history:", err);

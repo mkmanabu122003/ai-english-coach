@@ -21,6 +21,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(start) || !dateRegex.test(end)) {
+      return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
+    }
+
     const db = getAdminDb();
     const snapshot = await db
       .collection("stats")

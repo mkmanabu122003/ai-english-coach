@@ -42,9 +42,17 @@ export default function LoginPage() {
 
       router.push("/dashboard");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "ログインに失敗しました"
-      );
+      // Map Firebase error codes to user-friendly messages
+      const errorCode = (err as { code?: string })?.code ?? "";
+      const errorMap: Record<string, string> = {
+        "auth/wrong-password": "メールアドレスまたはパスワードが正しくありません",
+        "auth/user-not-found": "メールアドレスまたはパスワードが正しくありません",
+        "auth/invalid-credential": "メールアドレスまたはパスワードが正しくありません",
+        "auth/invalid-email": "メールアドレスの形式が正しくありません",
+        "auth/too-many-requests": "ログイン試行回数が多すぎます。しばらくしてからお試しください",
+        "auth/user-disabled": "このアカウントは無効化されています",
+      };
+      setError(errorMap[errorCode] || "ログインに失敗しました");
     } finally {
       setLoading(false);
     }

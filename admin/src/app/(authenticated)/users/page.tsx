@@ -360,7 +360,7 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {user.language.toUpperCase()}
+                        {user.language?.toUpperCase() ?? "N/A"}
                       </Badge>
                     </TableCell>
                     <TableCell>

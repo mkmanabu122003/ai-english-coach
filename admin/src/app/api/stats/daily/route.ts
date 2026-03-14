@@ -19,6 +19,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date") || getTodayJST();
 
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
+    }
+
     const db = getAdminDb();
     const docRef = db.collection("stats").doc("daily").collection("dates").doc(date);
     const doc = await docRef.get();
