@@ -4,6 +4,13 @@ export const RATE_LIMITS = {
   VOICE_MAX_DURATION_SEC: 180,
 };
 
+export const FREE_PLAN_LIMITS = {
+  DAILY_TEXT_MAX: 3,
+  DAILY_VOICE_MAX: 0,
+};
+
+export const INACTIVE_ALERT_DAYS = 5;
+
 export const CONTEXT_WINDOW_SIZE = 5;
 export const CONTEXT_RESET_MINUTES = 60;
 export const MAX_TEXT_LENGTH = 2000;

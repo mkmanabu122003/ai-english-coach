@@ -14,6 +14,7 @@ import { withErrorHandling } from "../middleware/errorHandler";
 import { checkRateLimit } from "../middleware/rateLimiter";
 import { sanitizeTextInput } from "../middleware/validator";
 import { updateStreak } from "../utils/streak";
+import { checkMilestones } from "../utils/milestones";
 import { getTodayJST } from "../utils/dateUtils";
 import {
   CONTEXT_WINDOW_SIZE,
@@ -113,6 +114,19 @@ export async function handleTextChat(
           "通訳ガイドは「話す力」が最重要です！";
       }
     }
+    // 8b. マイルストーン達成チェック（reply前に計算）
+    const streakUpdates = updateStreak(user, todayJST);
+    const newTotalChats = user.totalChats + 1;
+    const milestoneResult = checkMilestones(user, {
+      chatType: "text",
+      newStreak: streakUpdates.currentStreak ?? user.currentStreak,
+      newTotalChats: newTotalChats,
+      newTotalVoice: user.totalVoice,
+    });
+    if (milestoneResult.messages.length > 0) {
+      responseText += "\n\n" + milestoneResult.messages.join("\n");
+    }
+
     await replyText(replyToken, responseText);
 
     // 9. addChatLog
@@ -126,17 +140,23 @@ export async function handleTextChat(
       },
     });
 
-    // 10. updateStreak + dailyTextCount++ + totalChats++
-    const streakUpdates = updateStreak(user, todayJST);
+    // 10. updateStreak + dailyTextCount++ + totalChats++ + milestones
     const counterUpdates: Partial<User> = {
       ...streakUpdates,
       dailyTextCount: rateLimit.resetNeeded ? 1 : user.dailyTextCount + 1,
-      totalChats: user.totalChats + 1,
+      totalChats: newTotalChats,
     };
     if (rateLimit.resetNeeded) {
       counterUpdates.dailyVoiceCount = 0;
       counterUpdates.lastCountDate = todayJST;
     }
+    if (milestoneResult.ids.length > 0) {
+      counterUpdates.achievedMilestones = [
+        ...(user.achievedMilestones ?? []),
+        ...milestoneResult.ids,
+      ];
+    }
+
     await updateUser(userId, counterUpdates);
   });
 }

@@ -1,5 +1,5 @@
 import { User } from "../types";
-import { RATE_LIMITS } from "../config/constants";
+import { RATE_LIMITS, FREE_PLAN_LIMITS } from "../config/constants";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -8,24 +8,47 @@ export interface RateLimitResult {
   resetNeeded?: boolean;
 }
 
+function getLimits(user: User): { textMax: number; voiceMax: number } {
+  if (user.plan === "free") {
+    return {
+      textMax: FREE_PLAN_LIMITS.DAILY_TEXT_MAX,
+      voiceMax: FREE_PLAN_LIMITS.DAILY_VOICE_MAX,
+    };
+  }
+  return {
+    textMax: RATE_LIMITS.DAILY_TEXT_MAX,
+    voiceMax: RATE_LIMITS.DAILY_VOICE_MAX,
+  };
+}
+
 export function checkRateLimit(
   user: User,
   type: "text" | "voice",
   todayJST: string
 ): RateLimitResult {
   const isNewDay = user.lastCountDate !== todayJST;
+  const limits = getLimits(user);
 
   // Day has changed — counters should be reset by the caller
   const textCount = isNewDay ? 0 : user.dailyTextCount;
   const voiceCount = isNewDay ? 0 : user.dailyVoiceCount;
 
   if (type === "text") {
-    if (textCount >= RATE_LIMITS.DAILY_TEXT_MAX) {
-      const voiceRemaining = RATE_LIMITS.DAILY_VOICE_MAX - voiceCount;
+    if (textCount >= limits.textMax) {
+      if (user.plan === "free") {
+        return {
+          allowed: false,
+          message:
+            `本日の無料プランのテキスト上限（${limits.textMax}回）に達しました。\n` +
+            "Bot Proプランにアップグレードすると、1日20回まで利用できます。",
+          resetNeeded: isNewDay,
+        };
+      }
+      const voiceRemaining = limits.voiceMax - voiceCount;
       return {
         allowed: false,
         message:
-          `本日のテキスト上限（${RATE_LIMITS.DAILY_TEXT_MAX}回）に達しました。` +
+          `本日のテキスト上限（${limits.textMax}回）に達しました。` +
           (voiceRemaining > 0
             ? `\nボイスチャットはあと${voiceRemaining}回使えます🎤`
             : "\nボイスチャットも上限に達しています。また明日お話ししましょう！"),
@@ -34,18 +57,28 @@ export function checkRateLimit(
     }
     return {
       allowed: true,
-      remaining: RATE_LIMITS.DAILY_TEXT_MAX - textCount - 1,
+      remaining: limits.textMax - textCount - 1,
       resetNeeded: isNewDay,
     };
   }
 
   // type === "voice"
-  if (voiceCount >= RATE_LIMITS.DAILY_VOICE_MAX) {
-    const textRemaining = RATE_LIMITS.DAILY_TEXT_MAX - textCount;
+  if (user.plan === "free") {
     return {
       allowed: false,
       message:
-        `本日のボイス上限（${RATE_LIMITS.DAILY_VOICE_MAX}回）に達しました。` +
+        "音声練習はBot Proプランで利用できます。\n" +
+        "テキストで英文を送ると添削します📝",
+      resetNeeded: isNewDay,
+    };
+  }
+
+  if (voiceCount >= limits.voiceMax) {
+    const textRemaining = limits.textMax - textCount;
+    return {
+      allowed: false,
+      message:
+        `本日のボイス上限（${limits.voiceMax}回）に達しました。` +
         (textRemaining > 0
           ? `\nテキストチャットはあと${textRemaining}回使えます💬`
           : "\nテキストチャットも上限に達しています。また明日お話ししましょう！"),
@@ -54,7 +87,7 @@ export function checkRateLimit(
   }
   return {
     allowed: true,
-    remaining: RATE_LIMITS.DAILY_VOICE_MAX - voiceCount - 1,
+    remaining: limits.voiceMax - voiceCount - 1,
     resetNeeded: isNewDay,
   };
 }

@@ -16,7 +16,7 @@ import {
   NudgeType,
 } from "../prompts/pushMessages";
 import { getCurrentHourJST, getTodayJST, getWeekId } from "../utils/dateUtils";
-import { PUSH_BATCH_SIZE, PUSH_BATCH_DELAY_MS } from "../config/constants";
+import { PUSH_BATCH_SIZE, PUSH_BATCH_DELAY_MS, INACTIVE_ALERT_DAYS } from "../config/constants";
 import { User } from "../types";
 
 function sleep(ms: number): Promise<void> {
@@ -115,8 +115,10 @@ function determineNudgeType(user: User, todayJST: string): NudgeType {
 // ── weeklyReport ──
 
 export async function weeklyReport(): Promise<void> {
-  const users = await getAllActiveUsers();
-  logger.info("weeklyReport: target users", { count: users.length });
+  const allUsers = await getAllActiveUsers();
+  // Freeプランユーザーは週次レポート対象外
+  const users = allUsers.filter((u) => u.plan !== "free");
+  logger.info("weeklyReport: target users", { count: users.length, excluded: allUsers.length - users.length });
 
   // バッチ処理: 10人ずつ、間に200msディレイ
   for (let i = 0; i < users.length; i += PUSH_BATCH_SIZE) {
@@ -221,6 +223,68 @@ async function sendWeeklyReport(user: User): Promise<void> {
       type: "weekly_report",
       error: err instanceof Error ? err.message : err,
       stack: err instanceof Error ? err.stack : undefined,
+    });
+  }
+}
+
+// ── churnDetection ──
+
+export async function churnDetection(): Promise<void> {
+  const todayJST = getTodayJST();
+  const users = await getAllActiveUsers();
+
+  // Bot Proプランで一定期間非アクティブなユーザーを検出
+  const churningUsers = users.filter((u) => {
+    if (u.plan !== "bot_pro") return false;
+    if (!u.lastActiveDate) return false;
+
+    const lastActive = new Date(u.lastActiveDate + "T00:00:00Z");
+    const today = new Date(todayJST + "T00:00:00Z");
+    const diffDays = Math.floor(
+      (today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    return diffDays >= INACTIVE_ALERT_DAYS;
+  });
+
+  logger.info("churnDetection: results", {
+    totalActive: users.length,
+    churning: churningUsers.length,
+  });
+
+  if (churningUsers.length === 0) {
+    return;
+  }
+
+  // インストラクターへのアラート（環境変数でLINE IDを設定）
+  const instructorId = process.env.INSTRUCTOR_LINE_USER_ID;
+  if (!instructorId) {
+    logger.warn("churnDetection: INSTRUCTOR_LINE_USER_ID not set, skipping alert");
+    return;
+  }
+
+  const alertLines = churningUsers.map((u) => {
+    const lastActive = new Date(u.lastActiveDate + "T00:00:00Z");
+    const today = new Date(todayJST + "T00:00:00Z");
+    const days = Math.floor(
+      (today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    return `・${u.displayName}（${days}日間未学習）`;
+  });
+
+  const alertMessage =
+    `⚠️ 離脱リスクアラート（${todayJST}）\n\n` +
+    `${INACTIVE_ALERT_DAYS}日以上未学習のBot Proユーザー:\n` +
+    alertLines.join("\n");
+
+  try {
+    await pushText(instructorId, alertMessage);
+    logger.info("churnDetection: alert sent", {
+      instructorId,
+      churningCount: churningUsers.length,
+    });
+  } catch (err) {
+    logger.error("churnDetection: failed to send alert", {
+      error: err instanceof Error ? err.message : err,
     });
   }
 }

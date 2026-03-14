@@ -1,8 +1,11 @@
 import { Timestamp } from "firebase-admin/firestore";
 
+export type UserPlan = "free" | "bot_pro";
+
 export interface User {
   lineUserId: string;
   displayName: string;
+  plan: UserPlan;
   englishLevel: "beginner" | "intermediate" | "advanced" | "unset";
   currentStreak: number;
   longestStreak: number;
@@ -14,6 +17,7 @@ export interface User {
   lastCountDate: string; // "YYYY-MM-DD" JST
   pushTime: string; // "HH:mm"
   recentQuestions: string[]; // 最大7件
+  achievedMilestones: string[]; // 達成済みマイルストーンID
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;

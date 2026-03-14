@@ -12,6 +12,7 @@ import { VOICE_ADDITION } from "../prompts/voicePrompt";
 import { withErrorHandling } from "../middleware/errorHandler";
 import { checkRateLimit } from "../middleware/rateLimiter";
 import { updateStreak } from "../utils/streak";
+import { checkMilestones } from "../utils/milestones";
 import { getTodayJST } from "../utils/dateUtils";
 import { RATE_LIMITS } from "../config/constants";
 import { User } from "../types";
@@ -95,30 +96,49 @@ export async function handleVoiceChat(
       latencyMs: chatLatencyMs,
     });
 
-    // 8. replyText
-    await replyText(replyToken, result.text);
+    // 8. マイルストーン達成チェック（reply前に計算）
+    const streakUpdates = updateStreak(user, todayJST);
+    const newTotalVoice = user.totalVoice + 1;
+    const milestoneResult = checkMilestones(user, {
+      chatType: "voice",
+      newStreak: streakUpdates.currentStreak ?? user.currentStreak,
+      newTotalChats: user.totalChats,
+      newTotalVoice: newTotalVoice,
+    });
+
+    let responseText = result.text;
+    if (milestoneResult.messages.length > 0) {
+      responseText += "\n\n" + milestoneResult.messages.join("\n");
+    }
+
+    await replyText(replyToken, responseText);
 
     // 9. addChatLog (type: "voice", userMessage: 文字起こし結果)
     await addChatLog(userId, {
       type: "voice",
       userMessage: transcription,
-      aiResponse: result.text,
+      aiResponse: responseText,
       tokenUsage: {
         promptTokens: result.usage.promptTokens,
         completionTokens: result.usage.completionTokens,
       },
     });
 
-    // 10. updateStreak + dailyVoiceCount++ + totalVoice++
-    const streakUpdates = updateStreak(user, todayJST);
+    // 10. updateStreak + dailyVoiceCount++ + totalVoice++ + milestones
     const counterUpdates: Partial<User> = {
       ...streakUpdates,
       dailyVoiceCount: rateLimit.resetNeeded ? 1 : user.dailyVoiceCount + 1,
-      totalVoice: user.totalVoice + 1,
+      totalVoice: newTotalVoice,
     };
     if (rateLimit.resetNeeded) {
       counterUpdates.dailyTextCount = 0;
       counterUpdates.lastCountDate = todayJST;
+    }
+    if (milestoneResult.ids.length > 0) {
+      counterUpdates.achievedMilestones = [
+        ...(user.achievedMilestones ?? []),
+        ...milestoneResult.ids,
+      ];
     }
     await updateUser(userId, counterUpdates);
   });

@@ -39,6 +39,7 @@ export async function createUser(
   const user: Record<string, unknown> = {
     lineUserId: userId,
     displayName,
+    plan: "free",
     englishLevel: "unset",
     currentStreak: 0,
     longestStreak: 0,
@@ -50,6 +51,7 @@ export async function createUser(
     lastCountDate: "",
     pushTime: "08:00",
     recentQuestions: [],
+    achievedMilestones: [],
     isActive: true,
     createdAt: now,
     updatedAt: now,
