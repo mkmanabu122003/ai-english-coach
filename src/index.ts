@@ -7,6 +7,7 @@ import {
   weeklyReport as weeklyReportHandler,
   churnDetection as churnDetectionHandler,
 } from "./handlers/scheduler";
+import { generateDailyStats } from "./services/statsService";
 
 initializeFirestore();
 
@@ -101,6 +102,25 @@ export const churnDetection = onRequest(
       churnDetectionHandler("en"),
       churnDetectionHandler("es"),
     ]);
+    res.status(200).send("OK");
+  }
+);
+
+// ── Daily Stats Batch ──
+
+export const dailyStats = onRequest(
+  {
+    region: "asia-northeast1",
+    timeoutSeconds: 540,
+    memory: "512MiB",
+    maxInstances: 1,
+  },
+  async (req: Request, res: Response) => {
+    if (!hasOidcToken(req)) {
+      res.status(401).send("Unauthorized");
+      return;
+    }
+    await generateDailyStats();
     res.status(200).send("OK");
   }
 );

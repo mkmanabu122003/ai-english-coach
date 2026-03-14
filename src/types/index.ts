@@ -5,6 +5,35 @@ export type UserPlan = "free" | "bot_pro";
 
 export type SkillLevel = "beginner" | "intermediate" | "advanced" | "unset";
 
+// ── Onboarding & History ──
+
+export interface OnboardingStatus {
+  firstText: boolean;
+  levelSet: boolean;
+  pushTimeSet: boolean;
+  firstVoice: boolean;
+  streak3: boolean;
+}
+
+export interface LevelHistoryEntry {
+  level: string;
+  changedAt: Timestamp;
+}
+
+export interface PlanHistoryEntry {
+  plan: string;
+  changedAt: Timestamp;
+}
+
+export interface InterventionEntry {
+  type: "auto_nudge" | "admin_message" | "survey";
+  content: string;
+  sentAt: Timestamp;
+  adminUserId?: string;
+}
+
+// ── User ──
+
 export interface User {
   lineUserId: string;
   displayName: string;
@@ -23,9 +52,16 @@ export interface User {
   recentQuestions: string[]; // 最大7件
   achievedMilestones: string[]; // 達成済みマイルストーンID
   isActive: boolean;
+  healthScore: number; // 0-100, 日次バッチで算出
+  onboardingStatus: OnboardingStatus;
+  levelHistory: LevelHistoryEntry[];
+  planHistory: PlanHistoryEntry[];
+  interventions: InterventionEntry[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
+
+// ── Chat & Reports ──
 
 export interface ChatLog {
   type: "text" | "voice";
@@ -45,4 +81,76 @@ export interface WeeklyReport {
   activeDays: number;
   reportText: string;
   sentAt: Timestamp;
+}
+
+// ── Stats ──
+
+export interface LangSplit {
+  en: number;
+  es: number;
+}
+
+export interface DailyStats {
+  totalUsers: LangSplit;
+  activeUsers: LangSplit;
+  freeUsers: LangSplit;
+  proUsers: LangSplit;
+  newFollows: LangSplit;
+  unfollows: LangSplit;
+  textChats: LangSplit;
+  voiceChats: LangSplit;
+  promptTokens: LangSplit;
+  completionTokens: LangSplit;
+  dau: LangSplit;
+  avgStreak: LangSplit;
+  avgHealthScore: LangSplit;
+  churnRiskCount: LangSplit;
+  firstChatUsers: LangSplit;
+  rateLimitHits: LangSplit;
+  proConversions: LangSplit;
+  generatedAt: Timestamp;
+}
+
+export interface WeeklyStats {
+  wau: LangSplit;
+  newFollows: LangSplit;
+  unfollows: LangSplit;
+  proConversions: LangSplit;
+  proCancellations: LangSplit;
+  avgSessionChats: LangSplit;
+  voiceAdoptionRate: LangSplit;
+  generatedAt: Timestamp;
+}
+
+// ── Admin ──
+
+export interface AdminAction {
+  adminUserId: string;
+  action: string;
+  targetUserId?: string;
+  details: Record<string, unknown>;
+  createdAt: Timestamp;
+}
+
+// ── Content (P1) ──
+
+export interface Question {
+  id: string;
+  category: string;
+  level: SkillLevel;
+  question: string;
+  language: TargetLanguage;
+  isActive: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface NudgeMessage {
+  id: string;
+  type: "gentle_nudge" | "strong_nudge" | "streak_boost";
+  language: TargetLanguage;
+  text: string;
+  isActive: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }

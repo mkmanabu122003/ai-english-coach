@@ -1,9 +1,13 @@
 import * as admin from "firebase-admin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { User, ChatLog, WeeklyReport } from "../types";
+import { User, ChatLog, WeeklyReport, AdminAction, DailyStats } from "../types";
 import { TargetLanguage, getLangStrings } from "../config/languages";
 
 let db: FirebaseFirestore.Firestore;
+
+export function getDb(): FirebaseFirestore.Firestore {
+  return db;
+}
 
 export function initializeFirestore(): void {
   if (admin.apps.length === 0) {
@@ -59,6 +63,17 @@ export async function createUser(
     recentQuestions: [],
     achievedMilestones: [],
     isActive: true,
+    healthScore: 0,
+    onboardingStatus: {
+      firstText: false,
+      levelSet: false,
+      pushTimeSet: false,
+      firstVoice: false,
+      streak3: false,
+    },
+    levelHistory: [],
+    planHistory: [{ plan: "free", changedAt: now }],
+    interventions: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -143,4 +158,121 @@ export async function getAllActiveUsers(lang: TargetLanguage = "en"): Promise<Us
     .where("isActive", "==", true)
     .get();
   return snap.docs.map((doc) => doc.data() as User);
+}
+
+// ── Stats ──
+
+function dailyStatsRef(date: string): FirebaseFirestore.DocumentReference {
+  return db.collection("stats").doc("daily").collection("dates").doc(date);
+}
+
+export async function incrementDailyStat(
+  date: string,
+  field: string,
+  lang: TargetLanguage,
+  amount: number = 1
+): Promise<void> {
+  const ref = dailyStatsRef(date);
+  await ref.set(
+    { [`${field}.${lang}`]: FieldValue.increment(amount) },
+    { merge: true }
+  );
+}
+
+export async function getDailyStats(date: string): Promise<DailyStats | null> {
+  const snap = await dailyStatsRef(date).get();
+  if (!snap.exists) return null;
+  return snap.data() as DailyStats;
+}
+
+export async function getDailyStatsRange(
+  startDate: string,
+  endDate: string
+): Promise<Array<{ date: string; stats: DailyStats }>> {
+  const snap = await db
+    .collection("stats")
+    .doc("daily")
+    .collection("dates")
+    .where("__name__", ">=", startDate)
+    .where("__name__", "<=", endDate)
+    .orderBy("__name__", "asc")
+    .get();
+  return snap.docs.map((doc) => ({
+    date: doc.id,
+    stats: doc.data() as DailyStats,
+  }));
+}
+
+export async function setDailyStats(
+  date: string,
+  stats: Partial<DailyStats>
+): Promise<void> {
+  await dailyStatsRef(date).set(stats, { merge: true });
+}
+
+// ── Admin Actions (Audit Log) ──
+
+export async function recordAdminAction(
+  action: Omit<AdminAction, "createdAt">
+): Promise<void> {
+  await db.collection("adminActions").add({
+    ...action,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+}
+
+export async function getAdminActions(
+  targetUserId?: string,
+  limit: number = 50
+): Promise<AdminAction[]> {
+  let query: FirebaseFirestore.Query = db.collection("adminActions");
+  if (targetUserId) {
+    query = query.where("targetUserId", "==", targetUserId);
+  }
+  query = query.orderBy("createdAt", "desc").limit(limit);
+  const snap = await query.get();
+  return snap.docs.map((doc) => doc.data() as AdminAction);
+}
+
+// ── User Queries (Admin) ──
+
+export async function getAllUsers(lang: TargetLanguage = "en"): Promise<User[]> {
+  const snap = await usersRef(lang).get();
+  return snap.docs.map((doc) => doc.data() as User);
+}
+
+export async function getUserChatLogs(
+  userId: string,
+  lang: TargetLanguage = "en",
+  options?: {
+    type?: "text" | "voice";
+    limit?: number;
+    startAfter?: Timestamp;
+  }
+): Promise<ChatLog[]> {
+  let query: FirebaseFirestore.Query = chatLogsRef(userId, lang)
+    .orderBy("createdAt", "desc");
+
+  if (options?.type) {
+    query = query.where("type", "==", options.type);
+  }
+  if (options?.startAfter) {
+    query = query.startAfter(options.startAfter);
+  }
+  query = query.limit(options?.limit ?? 50);
+
+  const snap = await query.get();
+  return snap.docs.map((doc) => doc.data() as ChatLog);
+}
+
+export async function getUserWeeklyReports(
+  userId: string,
+  lang: TargetLanguage = "en",
+  limit: number = 20
+): Promise<WeeklyReport[]> {
+  const snap = await weeklyReportsRef(userId, lang)
+    .orderBy("sentAt", "desc")
+    .limit(limit)
+    .get();
+  return snap.docs.map((doc) => doc.data() as WeeklyReport);
 }
