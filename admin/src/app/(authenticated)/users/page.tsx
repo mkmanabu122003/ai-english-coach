@@ -146,15 +146,6 @@ export default function UsersPage() {
     return sortOrder === "asc" ? " \u2191" : " \u2193";
   };
 
-  // Check if a user is the second (or later) entry of a grouped pair
-  const isGroupedSubRow = (user: User, index: number): boolean => {
-    if (!user.linkedLanguages || user.linkedLanguages.length <= 1) return false;
-    // Check if the previous user in the list has the same lineUserId
-    if (index === 0) return false;
-    const prevUser = users[index - 1];
-    return prevUser.lineUserId === user.lineUserId;
-  };
-
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">ユーザー管理</h1>
@@ -356,13 +347,12 @@ export default function UsersPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              users.map((user, index) => {
+              users.map((user) => {
                 const onboardingCount = getOnboardingCount(user.onboardingStatus);
-                const subRow = isGroupedSubRow(user, index);
                 return (
                   <TableRow
                     key={`${user.lineUserId}-${user.language}`}
-                    className={`cursor-pointer ${subRow ? "bg-muted/30" : ""}`}
+                    className="cursor-pointer"
                     onClick={() =>
                       router.push(
                         `/users/${user.lineUserId}?lang=${user.language}`
@@ -370,17 +360,7 @@ export default function UsersPage() {
                     }
                   >
                     <TableCell className="font-medium">
-                      <div className={subRow ? "pl-4" : ""}>
-                        {subRow ? (
-                          <span className="text-muted-foreground">└ </span>
-                        ) : null}
-                        {user.displayName}
-                        {!subRow && user.linkedLanguages && user.linkedLanguages.length > 1 && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            ({user.linkedLanguages.length}言語)
-                          </span>
-                        )}
-                      </div>
+                      {user.displayName}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
