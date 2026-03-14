@@ -20,29 +20,33 @@ import {
   CONTEXT_WINDOW_SIZE,
   CONTEXT_RESET_MINUTES,
 } from "../config/constants";
+import { TargetLanguage, getLangStrings } from "../config/languages";
 import { User } from "../types";
 
 export async function handleTextChat(
   userId: string,
   text: string,
-  replyToken: string
+  replyToken: string,
+  lang: TargetLanguage = "en"
 ): Promise<void> {
   await withErrorHandling(replyToken, async () => {
+    const strings = getLangStrings(lang);
+
     // 1. getUser — create if missing (follow前にメッセージが来るケースの保険)
-    let user = await getUser(userId);
+    let user = await getUser(userId, lang);
     if (!user) {
-      const profile = await getProfile(userId);
-      await createUser(userId, profile.displayName);
-      user = (await getUser(userId))!;
+      const profile = await getProfile(userId, lang);
+      await createUser(userId, profile.displayName, lang);
+      user = (await getUser(userId, lang))!;
     }
 
     // 2. 日本語コマンド判定（完全一致）
-    const commandResult = handleCommand(text, user);
+    const commandResult = handleCommand(text, user, lang);
     if (commandResult !== null) {
       if (commandResult.updates) {
-        await updateUser(userId, commandResult.updates);
+        await updateUser(userId, commandResult.updates, lang);
       }
-      await replyText(replyToken, commandResult.reply);
+      await replyText(replyToken, commandResult.reply, lang);
       return;
     }
 
@@ -54,18 +58,18 @@ export async function handleTextChat(
 
     // 4. checkRateLimit
     const todayJST = getTodayJST();
-    const rateLimit = checkRateLimit(user, "text", todayJST);
+    const rateLimit = checkRateLimit(user, "text", todayJST, lang);
     if (!rateLimit.allowed) {
-      await replyText(replyToken, rateLimit.message!);
+      await replyText(replyToken, rateLimit.message!, lang);
       return;
     }
 
     // 5. getRecentChatLogs — コンテキスト構築
-    const recentLogs = await getRecentChatLogs(userId, CONTEXT_WINDOW_SIZE);
+    const recentLogs = await getRecentChatLogs(userId, CONTEXT_WINDOW_SIZE, lang);
     const contextMessages = buildContextMessages(recentLogs);
 
     // 6. buildSystemPrompt + 会話履歴 + ユーザーメッセージでchatCompletion
-    const systemPrompt = buildSystemPrompt(user);
+    const systemPrompt = buildSystemPrompt(user, lang);
     const messages: Array<{ role: string; content: string }> = [
       { role: "system", content: systemPrompt },
       ...contextMessages,
@@ -79,6 +83,7 @@ export async function handleTextChat(
     logger.info("API call completed", {
       userId,
       type: "text_chat",
+      lang,
       model: "claude-sonnet-4",
       promptTokens: result.usage.promptTokens,
       completionTokens: result.usage.completionTokens,
@@ -93,25 +98,18 @@ export async function handleTextChat(
       if (level) {
         await updateUser(userId, {
           englishLevel: level as User["englishLevel"],
-        });
+        }, lang);
       }
     }
 
     // 8. replyText — 初回返信にはヒント、テキスト3回ごとに音声促進を追加
     if (user.totalChats === 0) {
-      responseText +=
-        "\n\n──────\n" +
-        "💡 ヒント: 毎朝、今日の練習問題が届きます。\n" +
-        "通知時間の変更は「通知設定 08:00」のように送ってください。";
+      responseText += strings.firstChatHint;
     } else {
       const todayTextCount = rateLimit.resetNeeded ? 1 : user.dailyTextCount + 1;
       const todayVoiceCount = rateLimit.resetNeeded ? 0 : user.dailyVoiceCount;
       if (todayTextCount % 3 === 0 && todayVoiceCount === 0) {
-        responseText +=
-          "\n\n──────\n" +
-          "🎤 テキストでの練習、順調ですね！\n" +
-          "次は同じ内容を音声で言ってみましょう。\n" +
-          "通訳ガイドは「話す力」が最重要です！";
+        responseText += strings.voicePromptMessage;
       }
     }
     // 8b. マイルストーン達成チェック（reply前に計算）
@@ -122,12 +120,12 @@ export async function handleTextChat(
       newStreak: streakUpdates.currentStreak ?? user.currentStreak,
       newTotalChats: newTotalChats,
       newTotalVoice: user.totalVoice,
-    });
+    }, lang);
     if (milestoneResult.messages.length > 0) {
       responseText += "\n\n" + milestoneResult.messages.join("\n");
     }
 
-    await replyText(replyToken, responseText);
+    await replyText(replyToken, responseText, lang);
 
     // 9. addChatLog
     await addChatLog(userId, {
@@ -138,7 +136,7 @@ export async function handleTextChat(
         promptTokens: result.usage.promptTokens,
         completionTokens: result.usage.completionTokens,
       },
-    });
+    }, lang);
 
     // 10. updateStreak + dailyTextCount++ + totalChats++ + milestones
     const counterUpdates: Partial<User> = {
@@ -157,61 +155,56 @@ export async function handleTextChat(
       ];
     }
 
-    await updateUser(userId, counterUpdates);
-  });
+    await updateUser(userId, counterUpdates, lang);
+  }, lang);
 }
 
 function handleCommand(
   text: string,
-  user: User
+  user: User,
+  lang: TargetLanguage
 ): { reply: string; updates?: Partial<User> } | null {
+  const strings = getLangStrings(lang);
+
   // 「通知設定 HH:MM」コマンド
-  const pushTimeMatch = text.match(/^通知設定\s+(\d{1,2}):(\d{2})$/);
+  const pushTimeMatch = text.match(strings.commands.pushTimePattern);
   if (pushTimeMatch) {
     const hour = parseInt(pushTimeMatch[1], 10);
     const minute = parseInt(pushTimeMatch[2], 10);
     if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
       return {
-        reply: "時刻の形式が正しくありません。例: 通知設定 08:00",
+        reply: strings.commands.pushTimeErrorReply,
       };
     }
     const newTime = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
     return {
-      reply: `通知時間を ${newTime} に変更しました`,
+      reply: strings.commands.pushTimeSuccessReply(newTime),
       updates: { pushTime: newTime },
     };
   }
 
   switch (text) {
-    case "通知オフ":
+    case strings.commands.notifOff:
       return {
-        reply: "通知をオフにしました",
+        reply: strings.commands.notifOffReply,
         updates: { isActive: false },
       };
-    case "通知オン":
+    case strings.commands.notifOn:
       return {
-        reply: `通知をオンにしました。毎日${user.pushTime}に届きます`,
+        reply: strings.commands.notifOnReply(user.pushTime),
         updates: { isActive: true },
       };
-    case "レベル確認":
+    case strings.commands.levelCheck:
       return {
-        reply:
-          `レベル: ${user.englishLevel}\n` +
-          `連続学習: ${user.currentStreak}日\n` +
-          `累計チャット: ${user.totalChats}回`,
+        reply: strings.commands.levelCheckReply(
+          user.englishLevel,
+          user.currentStreak,
+          user.totalChats
+        ),
       };
-    case "ヘルプ":
+    case strings.commands.help:
       return {
-        reply:
-          "【使い方】\n" +
-          "・英文を送ると添削します\n" +
-          "・音声メッセージもOKです🎤\n" +
-          "・日本語で質問もできます\n\n" +
-          "【コマンド】\n" +
-          "・通知オン / 通知オフ\n" +
-          "・通知設定 HH:MM（例: 通知設定 21:00）\n" +
-          "・レベル確認\n" +
-          "・ヘルプ",
+        reply: strings.commands.helpReply,
       };
     default:
       return null;

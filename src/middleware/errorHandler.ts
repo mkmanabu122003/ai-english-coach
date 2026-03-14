@@ -1,10 +1,12 @@
 import * as logger from "firebase-functions/logger";
 import Anthropic from "@anthropic-ai/sdk";
 import { replyText } from "../services/line";
+import { TargetLanguage, getLangStrings } from "../config/languages";
 
 export async function withErrorHandling(
   replyToken: string,
-  handler: () => Promise<void>
+  handler: () => Promise<void>,
+  lang: TargetLanguage = "en"
 ): Promise<void> {
   try {
     await handler();
@@ -14,24 +16,22 @@ export async function withErrorHandling(
       stack: err instanceof Error ? err.stack : undefined,
     });
 
+    const strings = getLangStrings(lang);
     let userMessage: string;
 
     if (err instanceof Error && err.name === "AbortError") {
-      userMessage =
-        "少々お待ちください…もう一度お試しいただけますか？";
+      userMessage = strings.errorAbort;
     } else if (
       err instanceof Anthropic.APIError &&
       err.status === 429
     ) {
-      userMessage =
-        "ただいま混み合っています。1分後にもう一度お試しください。";
+      userMessage = strings.errorRateLimit;
     } else {
-      userMessage =
-        "すみません、一時的にエラーが発生しました。もう一度お試しください。";
+      userMessage = strings.errorGeneric;
     }
 
     try {
-      await replyText(replyToken, userMessage);
+      await replyText(replyToken, userMessage, lang);
     } catch (replyErr) {
       logger.error("Failed to send error reply", {
         error: replyErr instanceof Error ? replyErr.message : replyErr,

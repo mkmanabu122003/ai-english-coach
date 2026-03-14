@@ -2,26 +2,35 @@ import crypto from "crypto";
 import { messagingApi } from "@line/bot-sdk";
 import { getSecret } from "../config/secrets";
 import { splitMessage } from "../utils/messageFormatter";
+import { TargetLanguage, getLangStrings } from "../config/languages";
 
-let client: messagingApi.MessagingApiClient | null = null;
-let blobClient: messagingApi.MessagingApiBlobClient | null = null;
+const clients = new Map<string, messagingApi.MessagingApiClient>();
+const blobClients = new Map<string, messagingApi.MessagingApiBlobClient>();
 
-async function getClient(): Promise<messagingApi.MessagingApiClient> {
+async function getClient(lang: TargetLanguage = "en"): Promise<messagingApi.MessagingApiClient> {
+  const strings = getLangStrings(lang);
+  const key = strings.lineChannelAccessToken;
+  let client = clients.get(key);
   if (!client) {
-    const token = await getSecret("LINE_CHANNEL_ACCESS_TOKEN");
+    const token = await getSecret(key);
     client = new messagingApi.MessagingApiClient({
       channelAccessToken: token,
     });
+    clients.set(key, client);
   }
   return client;
 }
 
-async function getBlobClient(): Promise<messagingApi.MessagingApiBlobClient> {
+async function getBlobClient(lang: TargetLanguage = "en"): Promise<messagingApi.MessagingApiBlobClient> {
+  const strings = getLangStrings(lang);
+  const key = strings.lineChannelAccessToken;
+  let blobClient = blobClients.get(key);
   if (!blobClient) {
-    const token = await getSecret("LINE_CHANNEL_ACCESS_TOKEN");
+    const token = await getSecret(key);
     blobClient = new messagingApi.MessagingApiBlobClient({
       channelAccessToken: token,
     });
+    blobClients.set(key, blobClient);
   }
   return blobClient;
 }
@@ -44,9 +53,10 @@ export function validateSignature(
 
 export async function replyText(
   replyToken: string,
-  text: string
+  text: string,
+  lang: TargetLanguage = "en"
 ): Promise<void> {
-  const api = await getClient();
+  const api = await getClient(lang);
   const chunks = splitMessage(text);
   await api.replyMessage({
     replyToken,
@@ -56,9 +66,10 @@ export async function replyText(
 
 export async function pushText(
   userId: string,
-  text: string
+  text: string,
+  lang: TargetLanguage = "en"
 ): Promise<void> {
-  const api = await getClient();
+  const api = await getClient(lang);
   const chunks = splitMessage(text);
   await api.pushMessage({
     to: userId,
@@ -67,15 +78,16 @@ export async function pushText(
 }
 
 export async function getProfile(
-  userId: string
+  userId: string,
+  lang: TargetLanguage = "en"
 ): Promise<{ displayName: string }> {
-  const api = await getClient();
+  const api = await getClient(lang);
   const profile = await api.getProfile(userId);
   return { displayName: profile.displayName };
 }
 
-export async function getContent(messageId: string): Promise<Buffer> {
-  const blob = await getBlobClient();
+export async function getContent(messageId: string, lang: TargetLanguage = "en"): Promise<Buffer> {
+  const blob = await getBlobClient(lang);
   const stream = await blob.getMessageContent(messageId);
   const chunks: Buffer[] = [];
   for await (const chunk of stream as AsyncIterable<Buffer>) {

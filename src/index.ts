@@ -1,7 +1,7 @@
 import { onRequest, Request } from "firebase-functions/v2/https";
 import { Response } from "express";
 import { initializeFirestore } from "./services/firestore";
-import { webhookHandler } from "./handlers/webhook";
+import { createWebhookHandler } from "./handlers/webhook";
 import {
   dailyPush as dailyPushHandler,
   weeklyReport as weeklyReportHandler,
@@ -9,6 +9,8 @@ import {
 } from "./handlers/scheduler";
 
 initializeFirestore();
+
+// ── English Bot ──
 
 export const webhook = onRequest(
   {
@@ -18,13 +20,30 @@ export const webhook = onRequest(
     maxInstances: 50,
     concurrency: 80,
   },
-  webhookHandler
+  createWebhookHandler("en")
 );
+
+// ── Spanish Bot ──
+
+export const webhookEs = onRequest(
+  {
+    region: "asia-northeast1",
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    maxInstances: 50,
+    concurrency: 80,
+  },
+  createWebhookHandler("es")
+);
+
+// ── Shared helpers ──
 
 function hasOidcToken(req: Request): boolean {
   const auth = req.headers.authorization;
   return typeof auth === "string" && auth.startsWith("Bearer ");
 }
+
+// ── Scheduler endpoints (run for both languages) ──
 
 export const dailyPush = onRequest(
   {
@@ -38,7 +57,10 @@ export const dailyPush = onRequest(
       res.status(401).send("Unauthorized");
       return;
     }
-    await dailyPushHandler();
+    await Promise.all([
+      dailyPushHandler("en"),
+      dailyPushHandler("es"),
+    ]);
     res.status(200).send("OK");
   }
 );
@@ -55,7 +77,10 @@ export const weeklyReport = onRequest(
       res.status(401).send("Unauthorized");
       return;
     }
-    await weeklyReportHandler();
+    await Promise.all([
+      weeklyReportHandler("en"),
+      weeklyReportHandler("es"),
+    ]);
     res.status(200).send("OK");
   }
 );
@@ -72,7 +97,10 @@ export const churnDetection = onRequest(
       res.status(401).send("Unauthorized");
       return;
     }
-    await churnDetectionHandler();
+    await Promise.all([
+      churnDetectionHandler("en"),
+      churnDetectionHandler("es"),
+    ]);
     res.status(200).send("OK");
   }
 );

@@ -17,6 +17,7 @@ import {
 } from "../prompts/pushMessages";
 import { getCurrentHourJST, getTodayJST, getWeekId } from "../utils/dateUtils";
 import { PUSH_BATCH_SIZE, PUSH_BATCH_DELAY_MS, INACTIVE_ALERT_DAYS } from "../config/constants";
+import { TargetLanguage, getLangStrings } from "../config/languages";
 import { User } from "../types";
 
 function sleep(ms: number): Promise<void> {
@@ -25,13 +26,14 @@ function sleep(ms: number): Promise<void> {
 
 // ── dailyPush ──
 
-export async function dailyPush(): Promise<void> {
+export async function dailyPush(lang: TargetLanguage = "en"): Promise<void> {
   const currentHour = getCurrentHourJST();
   const todayJST = getTodayJST();
 
-  const users = await getActiveUsersByPushTime(currentHour);
+  const users = await getActiveUsersByPushTime(currentHour, lang);
   logger.info("dailyPush: target users", {
     hour: currentHour,
+    lang,
     count: users.length,
   });
 
@@ -39,7 +41,7 @@ export async function dailyPush(): Promise<void> {
   for (let i = 0; i < users.length; i += PUSH_BATCH_SIZE) {
     const batch = users.slice(i, i + PUSH_BATCH_SIZE);
     await Promise.allSettled(
-      batch.map((user) => sendDailyPush(user, todayJST))
+      batch.map((user) => sendDailyPush(user, todayJST, lang))
     );
     if (i + PUSH_BATCH_SIZE < users.length) {
       await sleep(PUSH_BATCH_DELAY_MS);
@@ -47,7 +49,7 @@ export async function dailyPush(): Promise<void> {
   }
 }
 
-async function sendDailyPush(user: User, todayJST: string): Promise<void> {
+async function sendDailyPush(user: User, todayJST: string, lang: TargetLanguage): Promise<void> {
   try {
     // lastActiveDate === today → skip（今日学習済み）
     if (user.lastActiveDate === todayJST) {
@@ -56,17 +58,18 @@ async function sendDailyPush(user: User, todayJST: string): Promise<void> {
 
     // nudgeタイプ判定
     const nudgeType = determineNudgeType(user, todayJST);
-    const nudgeMessage = getNudgeMessage(nudgeType);
+    const nudgeMessage = getNudgeMessage(nudgeType, lang);
 
     // 質問選択: レベルに合った、recentQuestionsに含まれない質問をランダム選択
-    const question = pickQuestion(user.recentQuestions, user.englishLevel);
+    const question = pickQuestion(user.recentQuestions, user.englishLevel, lang);
 
     const message = `${nudgeMessage}\n\n🗣️ ${question.question}`;
-    await pushText(user.lineUserId, message);
+    await pushText(user.lineUserId, message, lang);
 
     logger.info("Push sent", {
       userId: user.lineUserId,
       type: "daily_push",
+      lang,
       nudgeType,
       questionId: question.id,
     });
@@ -76,11 +79,12 @@ async function sendDailyPush(user: User, todayJST: string): Promise<void> {
     if (updatedRecent.length > 7) {
       updatedRecent.splice(0, updatedRecent.length - 7);
     }
-    await updateUser(user.lineUserId, { recentQuestions: updatedRecent });
+    await updateUser(user.lineUserId, { recentQuestions: updatedRecent }, lang);
   } catch (err) {
     logger.error("dailyPush: failed for user", {
       userId: user.lineUserId,
       type: "daily_push",
+      lang,
       error: err instanceof Error ? err.message : err,
       stack: err instanceof Error ? err.stack : undefined,
     });
@@ -114,17 +118,17 @@ function determineNudgeType(user: User, todayJST: string): NudgeType {
 
 // ── weeklyReport ──
 
-export async function weeklyReport(): Promise<void> {
-  const allUsers = await getAllActiveUsers();
+export async function weeklyReport(lang: TargetLanguage = "en"): Promise<void> {
+  const allUsers = await getAllActiveUsers(lang);
   // Freeプランユーザーは週次レポート対象外
   const users = allUsers.filter((u) => u.plan !== "free");
-  logger.info("weeklyReport: target users", { count: users.length, excluded: allUsers.length - users.length });
+  logger.info("weeklyReport: target users", { lang, count: users.length, excluded: allUsers.length - users.length });
 
   // バッチ処理: 10人ずつ、間に200msディレイ
   for (let i = 0; i < users.length; i += PUSH_BATCH_SIZE) {
     const batch = users.slice(i, i + PUSH_BATCH_SIZE);
     await Promise.allSettled(
-      batch.map((user) => sendWeeklyReport(user))
+      batch.map((user) => sendWeeklyReport(user, lang))
     );
     if (i + PUSH_BATCH_SIZE < users.length) {
       await sleep(PUSH_BATCH_DELAY_MS);
@@ -132,15 +136,17 @@ export async function weeklyReport(): Promise<void> {
   }
 }
 
-async function sendWeeklyReport(user: User): Promise<void> {
+async function sendWeeklyReport(user: User, lang: TargetLanguage): Promise<void> {
   try {
+    const strings = getLangStrings(lang);
+
     // 7日前のTimestampを計算
     const sevenDaysAgo = Timestamp.fromMillis(
       Date.now() - 7 * 24 * 60 * 60 * 1000
     );
 
     // chatLogsを集計
-    const logs = await getWeeklyChatLogs(user.lineUserId, sevenDaysAgo);
+    const logs = await getWeeklyChatLogs(user.lineUserId, sevenDaysAgo, lang);
 
     let textCount = 0;
     let voiceCount = 0;
@@ -170,7 +176,7 @@ async function sendWeeklyReport(user: User): Promise<void> {
         ? topics.slice(-5).join(", ")
         : "なし";
 
-    // buildReportPromptでGPT-4oにコメント生成
+    // buildReportPromptでAIにコメント生成
     const prompt = buildReportPrompt({
       displayName: user.displayName,
       textCount,
@@ -178,7 +184,7 @@ async function sendWeeklyReport(user: User): Promise<void> {
       activeDays,
       currentStreak: user.currentStreak,
       topTopics,
-    });
+    }, lang);
 
     const startMs = Date.now();
     const result = await chatCompletion(
@@ -190,6 +196,7 @@ async function sendWeeklyReport(user: User): Promise<void> {
     logger.info("API call completed", {
       userId: user.lineUserId,
       type: "weekly_report",
+      lang,
       model: "claude-sonnet-4",
       promptTokens: result.usage.promptTokens,
       completionTokens: result.usage.completionTokens,
@@ -198,14 +205,10 @@ async function sendWeeklyReport(user: User): Promise<void> {
 
     // フォーマットして送信
     const reportText =
-      `📊 今週の振り返り\n` +
-      `テキスト: ${textCount}回\n` +
-      `音声: ${voiceCount}回\n` +
-      `学習日数: ${activeDays}/7\n` +
-      `ストリーク: ${user.currentStreak}日\n\n` +
+      strings.weeklyReportHeader(textCount, voiceCount, activeDays, user.currentStreak) +
       result.text;
 
-    await pushText(user.lineUserId, reportText);
+    await pushText(user.lineUserId, reportText, lang);
 
     // weeklyReports保存
     const todayJST = getTodayJST();
@@ -216,11 +219,12 @@ async function sendWeeklyReport(user: User): Promise<void> {
       voiceCount,
       activeDays,
       reportText,
-    });
+    }, lang);
   } catch (err) {
     logger.error("weeklyReport: failed for user", {
       userId: user.lineUserId,
       type: "weekly_report",
+      lang,
       error: err instanceof Error ? err.message : err,
       stack: err instanceof Error ? err.stack : undefined,
     });
@@ -229,9 +233,10 @@ async function sendWeeklyReport(user: User): Promise<void> {
 
 // ── churnDetection ──
 
-export async function churnDetection(): Promise<void> {
+export async function churnDetection(lang: TargetLanguage = "en"): Promise<void> {
   const todayJST = getTodayJST();
-  const users = await getAllActiveUsers();
+  const users = await getAllActiveUsers(lang);
+  const strings = getLangStrings(lang);
 
   // Bot Proプランで一定期間非アクティブなユーザーを検出
   const churningUsers = users.filter((u) => {
@@ -247,6 +252,7 @@ export async function churnDetection(): Promise<void> {
   });
 
   logger.info("churnDetection: results", {
+    lang,
     totalActive: users.length,
     churning: churningUsers.length,
   });
@@ -268,18 +274,19 @@ export async function churnDetection(): Promise<void> {
     const days = Math.floor(
       (today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24)
     );
-    return `・${u.displayName}（${days}日間未学習）`;
+    return `・${u.displayName}（${days}${strings.churnDaysLabel}）`;
   });
 
   const alertMessage =
-    `⚠️ 離脱リスクアラート（${todayJST}）\n\n` +
-    `${INACTIVE_ALERT_DAYS}日以上未学習のBot Proユーザー:\n` +
+    strings.churnAlertHeader(todayJST, INACTIVE_ALERT_DAYS) +
     alertLines.join("\n");
 
   try {
-    await pushText(instructorId, alertMessage);
+    // Churn alerts are always sent via the English bot's LINE account
+    await pushText(instructorId, alertMessage, "en");
     logger.info("churnDetection: alert sent", {
       instructorId,
+      lang,
       churningCount: churningUsers.length,
     });
   } catch (err) {

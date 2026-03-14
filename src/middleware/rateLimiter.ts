@@ -1,5 +1,6 @@
 import { User } from "../types";
 import { RATE_LIMITS, FREE_PLAN_LIMITS } from "../config/constants";
+import { TargetLanguage, getLangStrings } from "../config/languages";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -24,10 +25,12 @@ function getLimits(user: User): { textMax: number; voiceMax: number } {
 export function checkRateLimit(
   user: User,
   type: "text" | "voice",
-  todayJST: string
+  todayJST: string,
+  lang: TargetLanguage = "en"
 ): RateLimitResult {
   const isNewDay = user.lastCountDate !== todayJST;
   const limits = getLimits(user);
+  const strings = getLangStrings(lang);
 
   // Day has changed — counters should be reset by the caller
   const textCount = isNewDay ? 0 : user.dailyTextCount;
@@ -38,20 +41,14 @@ export function checkRateLimit(
       if (user.plan === "free") {
         return {
           allowed: false,
-          message:
-            `本日の無料プランのテキスト上限（${limits.textMax}回）に達しました。\n` +
-            "Bot Proプランにアップグレードすると、1日20回まで利用できます。",
+          message: strings.rateLimitFreeText(limits.textMax),
           resetNeeded: isNewDay,
         };
       }
       const voiceRemaining = limits.voiceMax - voiceCount;
       return {
         allowed: false,
-        message:
-          `本日のテキスト上限（${limits.textMax}回）に達しました。` +
-          (voiceRemaining > 0
-            ? `\nボイスチャットはあと${voiceRemaining}回使えます🎤`
-            : "\nボイスチャットも上限に達しています。また明日お話ししましょう！"),
+        message: strings.rateLimitProText(limits.textMax, voiceRemaining),
         resetNeeded: isNewDay,
       };
     }
@@ -66,9 +63,7 @@ export function checkRateLimit(
   if (user.plan === "free") {
     return {
       allowed: false,
-      message:
-        "音声練習はBot Proプランで利用できます。\n" +
-        "テキストで英文を送ると添削します📝",
+      message: strings.rateLimitFreeVoice,
       resetNeeded: isNewDay,
     };
   }
@@ -77,11 +72,7 @@ export function checkRateLimit(
     const textRemaining = limits.textMax - textCount;
     return {
       allowed: false,
-      message:
-        `本日のボイス上限（${limits.voiceMax}回）に達しました。` +
-        (textRemaining > 0
-          ? `\nテキストチャットはあと${textRemaining}回使えます💬`
-          : "\nテキストチャットも上限に達しています。また明日お話ししましょう！"),
+      message: strings.rateLimitProVoice(limits.voiceMax, textRemaining),
       resetNeeded: isNewDay,
     };
   }
