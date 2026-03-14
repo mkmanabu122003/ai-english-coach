@@ -1,12 +1,18 @@
-export function buildReportPrompt(data: {
-  displayName: string;
-  textCount: number;
-  voiceCount: number;
-  activeDays: number;
-  currentStreak: number;
-  topTopics: string;
-}): string {
-  return `以下のユーザーの週次学習データをもとに、励ましと次週のアドバイスを日本語で書いてください。
+import { TargetLanguage } from "../config/languages";
+
+export function buildReportPrompt(
+  data: {
+    displayName: string;
+    textCount: number;
+    voiceCount: number;
+    activeDays: number;
+    currentStreak: number;
+    topTopics: string;
+  },
+  lang: TargetLanguage = "en"
+): string {
+  const langLabel = lang === "es" ? "スペイン語" : "英語";
+  return `以下のユーザーの週次${langLabel}学習データをもとに、励ましと次週のアドバイスを日本語で書いてください。
 3文以内、100文字以内で簡潔に。
 
 - ユーザー名: ${data.displayName}

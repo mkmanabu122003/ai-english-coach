@@ -1,12 +1,16 @@
 import { Timestamp } from "firebase-admin/firestore";
+import { TargetLanguage } from "../config/languages";
 
 export type UserPlan = "free" | "bot_pro";
+
+export type SkillLevel = "beginner" | "intermediate" | "advanced" | "unset";
 
 export interface User {
   lineUserId: string;
   displayName: string;
+  language: TargetLanguage;
   plan: UserPlan;
-  englishLevel: "beginner" | "intermediate" | "advanced" | "unset";
+  englishLevel: SkillLevel;
   currentStreak: number;
   longestStreak: number;
   lastActiveDate: string; // "YYYY-MM-DD" JST

@@ -6,56 +6,45 @@ import { createUser, getUser, updateUser } from "../services/firestore";
 import { getSecret } from "../config/secrets";
 import { handleTextChat } from "./textChat";
 import { handleVoiceChat } from "./voiceChat";
+import { TargetLanguage, getLangStrings } from "../config/languages";
 
-const WELCOME_MESSAGE =
-  "はじめまして！AI English Coach です 🎓\n" +
-  "通訳ガイドの英語力アップをお手伝いします。\n\n" +
-  "このBotでできること：\n" +
-  "📝 英文を送ると → 添削＋ガイド向け表現を提案\n" +
-  "🎤 音声を送ると → 発音チェック＋改善ポイント\n" +
-  "📊 毎週日曜に → 学習レポートをお届け\n\n" +
-  "さっそく始めましょう！\n" +
-  "まずは英語であなたの自己紹介をしてください。\n" +
-  '例: "Hi, I\'m [名前]. I\'ve been a tour guide for [X] years."\n\n' +
-  "【コマンド】\n" +
-  "・通知オン / 通知オフ\n" +
-  "・通知設定 HH:MM（例: 通知設定 21:00）\n" +
-  "・レベル確認\n" +
-  "・ヘルプ";
+export function createWebhookHandler(lang: TargetLanguage) {
+  return async (req: Request, res: Response): Promise<void> => {
+    // 1. 署名検証
+    const signature = req.headers["x-line-signature"] as string | undefined;
+    if (!signature) {
+      res.status(403).send("Missing signature");
+      return;
+    }
 
-export async function webhookHandler(
-  req: Request,
-  res: Response
-): Promise<void> {
-  // 1. 署名検証
-  const signature = req.headers["x-line-signature"] as string | undefined;
-  if (!signature) {
-    res.status(403).send("Missing signature");
-    return;
-  }
+    const strings = getLangStrings(lang);
+    const secret = await getSecret(strings.lineChannelSecret);
+    const bodyStr =
+      typeof req.body === "string" ? req.body : JSON.stringify(req.body);
 
-  const secret = await getSecret("LINE_CHANNEL_SECRET");
-  const bodyStr =
-    typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+    if (!validateSignature(bodyStr, signature, secret)) {
+      res.status(403).send("Invalid signature");
+      return;
+    }
 
-  if (!validateSignature(bodyStr, signature, secret)) {
-    res.status(403).send("Invalid signature");
-    return;
-  }
+    // 2. 即返却（LINEの再送防止）
+    res.status(200).send("OK");
 
-  // 2. 即返却（LINEの再送防止）
-  res.status(200).send("OK");
+    // 3. events配列をループ
+    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    const events: Array<Record<string, unknown>> = body.events ?? [];
 
-  // 3. events配列をループ
-  const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-  const events: Array<Record<string, unknown>> = body.events ?? [];
-
-  const tasks = events.map((event) => processEvent(event));
-  await Promise.allSettled(tasks);
+    const tasks = events.map((event) => processEvent(event, lang));
+    await Promise.allSettled(tasks);
+  };
 }
 
+/** @deprecated Use createWebhookHandler("en") instead */
+export const webhookHandler = createWebhookHandler("en");
+
 async function processEvent(
-  event: Record<string, unknown>
+  event: Record<string, unknown>,
+  lang: TargetLanguage
 ): Promise<void> {
   const eventType = event.type as string;
   const source = event.source as { userId?: string } | undefined;
@@ -66,26 +55,27 @@ async function processEvent(
   }
 
   const replyToken = event.replyToken as string | undefined;
+  const strings = getLangStrings(lang);
 
   try {
     switch (eventType) {
       case "follow": {
         // createUser + ウェルカムメッセージ
-        const existing = await getUser(userId);
+        const existing = await getUser(userId, lang);
         if (!existing) {
-          const profile = await getProfile(userId);
-          await createUser(userId, profile.displayName);
+          const profile = await getProfile(userId, lang);
+          await createUser(userId, profile.displayName, lang);
         } else if (!existing.isActive) {
-          await updateUser(userId, { isActive: true });
+          await updateUser(userId, { isActive: true }, lang);
         }
         if (replyToken) {
-          await replyText(replyToken, WELCOME_MESSAGE);
+          await replyText(replyToken, strings.welcomeMessage, lang);
         }
         break;
       }
 
       case "unfollow": {
-        await updateUser(userId, { isActive: false });
+        await updateUser(userId, { isActive: false }, lang);
         break;
       }
 
@@ -101,9 +91,9 @@ async function processEvent(
         }
 
         if (message.type === "text" && message.text) {
-          await handleTextChat(userId, message.text, replyToken);
+          await handleTextChat(userId, message.text, replyToken, lang);
         } else if (message.type === "audio" && message.id) {
-          await handleVoiceChat(userId, message.id, replyToken, message.duration);
+          await handleVoiceChat(userId, message.id, replyToken, lang, message.duration);
         }
         // その他のメッセージタイプは無視
         break;
@@ -117,6 +107,7 @@ async function processEvent(
     logger.error("Event processing error", {
       eventType,
       userId,
+      lang,
       error: err instanceof Error ? err.message : err,
       stack: err instanceof Error ? err.stack : undefined,
     });

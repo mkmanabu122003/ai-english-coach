@@ -6,6 +6,7 @@ function makeUser(overrides: Partial<User> = {}): User {
   return {
     lineUserId: "U001",
     displayName: "Test User",
+    language: "en",
     plan: "bot_pro",
     englishLevel: "intermediate",
     currentStreak: 0,

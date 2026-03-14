@@ -101,7 +101,8 @@ export async function chatCompletion(
 }
 
 export async function transcribeAudio(
-  audioBuffer: Buffer
+  audioBuffer: Buffer,
+  languageCode: string = "en-US"
 ): Promise<string> {
   const speechClient = new speech.SpeechClient();
   let lastError: unknown;
@@ -114,7 +115,7 @@ export async function transcribeAudio(
         config: {
           encoding: "OGG_OPUS" as const,
           sampleRateHertz: 16000,
-          languageCode: "en-US",
+          languageCode,
           model: "latest_long",
           enableAutomaticPunctuation: true,
         },

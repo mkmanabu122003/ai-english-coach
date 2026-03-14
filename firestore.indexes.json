@@ -7,6 +7,14 @@
         { "fieldPath": "isActive", "order": "ASCENDING" },
         { "fieldPath": "pushTime", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "usersEs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "pushTime", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

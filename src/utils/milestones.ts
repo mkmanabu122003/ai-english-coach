@@ -1,9 +1,10 @@
 import { User } from "../types";
+import { TargetLanguage, getLangStrings } from "../config/languages";
 
 interface MilestoneDefinition {
   id: string;
   check: (user: User, context: MilestoneContext) => boolean;
-  message: string;
+  messageKey: keyof ReturnType<typeof getLangStrings>["milestones"];
 }
 
 export interface MilestoneContext {
@@ -21,33 +22,33 @@ const MILESTONES: MilestoneDefinition[] = [
   {
     id: "first_chat",
     check: (_user, ctx) => ctx.newTotalChats + ctx.newTotalVoice === 1,
-    message: "🎉 最初の一歩を踏み出しました！毎日少しずつ続けていきましょう！",
+    messageKey: "firstChat",
   },
   {
     id: "streak_3",
     check: (_user, ctx) => ctx.newStreak === 3,
-    message: "🔥 3日連続達成！いい調子です！",
+    messageKey: "streak3",
   },
   {
     id: "streak_7",
     check: (_user, ctx) => ctx.newStreak === 7,
-    message: "⭐ 1週間連続達成！習慣化の第一歩です！",
+    messageKey: "streak7",
   },
   {
     id: "streak_30",
     check: (_user, ctx) => ctx.newStreak === 30,
-    message: "🏆 30日連続達成！素晴らしい継続力です！",
+    messageKey: "streak30",
   },
   {
     id: "total_100",
     check: (_user, ctx) => ctx.newTotalChats + ctx.newTotalVoice === 100,
-    message: "💯 チャット100回突破！確実に力がついています！",
+    messageKey: "total100",
   },
   {
     id: "first_voice",
     check: (_user, ctx) =>
       ctx.chatType === "voice" && ctx.newTotalVoice === 1,
-    message: "🎤 初めての音声練習クリア！話す力が伸びます！",
+    messageKey: "firstVoice",
   },
 ];
 
@@ -57,9 +58,11 @@ const MILESTONES: MilestoneDefinition[] = [
  */
 export function checkMilestones(
   user: User,
-  context: MilestoneContext
+  context: MilestoneContext,
+  lang: TargetLanguage = "en"
 ): { ids: string[]; messages: string[] } {
   const achieved = user.achievedMilestones ?? [];
+  const strings = getLangStrings(lang);
   const newIds: string[] = [];
   const newMessages: string[] = [];
 
@@ -69,7 +72,7 @@ export function checkMilestones(
     }
     if (m.check(user, context)) {
       newIds.push(m.id);
-      newMessages.push(m.message);
+      newMessages.push(strings.milestones[m.messageKey]);
     }
   }
 
