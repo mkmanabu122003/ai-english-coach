@@ -60,24 +60,6 @@ export async function GET(request: NextRequest) {
       }));
     }
 
-    // Build a set of lineUserIds that exist in multiple languages
-    const lineUserIdLangs = new Map<string, string[]>();
-    for (const u of users) {
-      const uid = u.lineUserId || u.id;
-      const existing = lineUserIdLangs.get(uid) || [];
-      existing.push(u.language || "en");
-      lineUserIdLangs.set(uid, existing);
-    }
-
-    // Attach linkedLanguages to each user
-    for (const u of users) {
-      const uid = u.lineUserId || u.id;
-      const langs = lineUserIdLangs.get(uid) || [];
-      if (langs.length > 1) {
-        u.linkedLanguages = langs;
-      }
-    }
-
     // Apply preset filters
     if (preset === "churnRisk") {
       users = users.filter(
@@ -166,22 +148,6 @@ export async function GET(request: NextRequest) {
 
       return order === "asc" ? aVal - bVal : bVal - aVal;
     });
-
-    // Group users by lineUserId for display ordering
-    // Users with the same lineUserId should be adjacent
-    if (lang === "all") {
-      const grouped: typeof users = [];
-      const seen = new Set<string>();
-      for (const u of users) {
-        const uid = u.lineUserId || u.id;
-        if (seen.has(uid)) continue;
-        seen.add(uid);
-        // Add all users with this lineUserId together
-        const sameUser = users.filter((u2) => (u2.lineUserId || u2.id) === uid);
-        grouped.push(...sameUser);
-      }
-      users = grouped;
-    }
 
     // Paginate
     const offset = (page - 1) * limit;

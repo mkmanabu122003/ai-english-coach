@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import type { User, ChatLog, WeeklyReport } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,6 @@ function getLast7Days(): string[] {
 }
 
 export default function UserDetailPage() {
-  const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const userId = params.userId as string;
@@ -246,24 +245,6 @@ export default function UserDetailPage() {
             <Badge variant="outline" className="capitalize">
               {user.englishLevel}
             </Badge>
-            {user.linkedLanguages && user.linkedLanguages.length > 1 && (
-              <>
-                {user.linkedLanguages
-                  .filter((l) => l !== lang)
-                  .map((otherLang) => (
-                    <Badge
-                      key={otherLang}
-                      variant="secondary"
-                      className="cursor-pointer hover:bg-primary/20"
-                      onClick={() =>
-                        router.push(`/users/${userId}?lang=${otherLang}`)
-                      }
-                    >
-                      {otherLang.toUpperCase()} にも登録あり →
-                    </Badge>
-                  ))}
-              </>
-            )}
           </div>
         </div>
         <HealthScoreBadge score={user.healthScore} size="lg" />

@@ -31,16 +31,7 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const user: any = { id: userDoc.id, ...userDoc.data() };
-
-    // Check if user exists in the other language collection
-    const otherCollectionName = lang === "es" ? "users" : "usersEs";
-    const otherDoc = await db.collection(otherCollectionName).doc(userId).get();
-    if (otherDoc.exists) {
-      const otherLang = lang === "es" ? "en" : "es";
-      user.linkedLanguages = [lang, otherLang];
-    }
+    const user = { id: userDoc.id, ...userDoc.data() };
 
     // Fetch recent chat logs (last 20)
     const chatLogsSnapshot = await db

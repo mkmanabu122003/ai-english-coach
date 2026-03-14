@@ -53,7 +53,6 @@ export interface User {
   interventions: InterventionEntry[];
   createdAt: { _seconds: number; _nanoseconds: number };
   updatedAt: { _seconds: number; _nanoseconds: number };
-  linkedLanguages?: string[];
 }
 
 export interface ChatLog {
