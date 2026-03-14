@@ -16,7 +16,12 @@ const WELCOME_MESSAGE =
   "📊 毎週日曜に → 学習レポートをお届け\n\n" +
   "さっそく始めましょう！\n" +
   "まずは英語であなたの自己紹介をしてください。\n" +
-  '例: "Hi, I\'m [名前]. I\'ve been a tour guide for [X] years."';
+  '例: "Hi, I\'m [名前]. I\'ve been a tour guide for [X] years."\n\n' +
+  "【コマンド】\n" +
+  "・通知オン / 通知オフ\n" +
+  "・通知設定 HH:MM（例: 通知設定 21:00）\n" +
+  "・レベル確認\n" +
+  "・ヘルプ";
 
 export async function webhookHandler(
   req: Request,

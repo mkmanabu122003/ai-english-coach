@@ -5,6 +5,7 @@ import { webhookHandler } from "./handlers/webhook";
 import {
   dailyPush as dailyPushHandler,
   weeklyReport as weeklyReportHandler,
+  churnDetection as churnDetectionHandler,
 } from "./handlers/scheduler";
 
 initializeFirestore();
@@ -55,6 +56,23 @@ export const weeklyReport = onRequest(
       return;
     }
     await weeklyReportHandler();
+    res.status(200).send("OK");
+  }
+);
+
+export const churnDetection = onRequest(
+  {
+    region: "asia-northeast1",
+    timeoutSeconds: 120,
+    memory: "256MiB",
+    maxInstances: 1,
+  },
+  async (req: Request, res: Response) => {
+    if (!hasOidcToken(req)) {
+      res.status(401).send("Unauthorized");
+      return;
+    }
+    await churnDetectionHandler();
     res.status(200).send("OK");
   }
 );
