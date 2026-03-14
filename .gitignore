@@ -6,6 +6,7 @@ node_modules/
 *.d.ts
 *.js
 !jest.config.js
+!admin/postcss.config.js
 
 # Firebase
 .firebase/
