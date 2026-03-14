@@ -127,13 +127,14 @@ export async function handleTextChat(
       }
     }
 
-    // 8. replyText — 初回返信にはヒント、テキスト3回ごとに音声促進を追加
+    // 8. replyText — 初回返信にはヒント、テキスト3回ごと（添削時のみ）に音声促進を追加
     if (user.totalChats === 0) {
       responseText += strings.firstChatHint;
     } else {
       const todayTextCount = rateLimit.resetNeeded ? 1 : user.dailyTextCount + 1;
       const todayVoiceCount = rateLimit.resetNeeded ? 0 : user.dailyVoiceCount;
-      if (todayTextCount % 3 === 0 && todayVoiceCount === 0) {
+      const isCorrection = responseText.includes("📝");
+      if (todayTextCount % 3 === 0 && todayVoiceCount === 0 && isCorrection) {
         responseText += strings.voicePromptMessage;
       }
     }

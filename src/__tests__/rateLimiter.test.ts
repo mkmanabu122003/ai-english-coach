@@ -97,7 +97,7 @@ describe("checkRateLimit", () => {
       const user = makeUser({ plan: "free", dailyTextCount: 3, lastCountDate: today });
       const result = checkRateLimit(user, "text", today);
       expect(result.allowed).toBe(false);
-      expect(result.message).toContain("無料プラン");
+      expect(result.message).toContain("おつかれさまでした");
       expect(result.message).toContain("Bot Pro");
     });
 
