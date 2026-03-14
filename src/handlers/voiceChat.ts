@@ -8,7 +8,7 @@ import {
 } from "../services/firestore";
 import { getProfile, replyText, getContent } from "../services/line";
 import { chatCompletion, transcribeAudio } from "../services/openai";
-import { buildSystemPrompt } from "../prompts/systemPrompt";
+import { buildSystemPrompt, extractLevel, shouldReassessLevel } from "../prompts/systemPrompt";
 import { getVoiceAddition } from "../prompts/voicePrompt";
 import { withErrorHandling } from "../middleware/errorHandler";
 import { checkRateLimit } from "../middleware/rateLimiter";
@@ -110,6 +110,30 @@ export async function handleVoiceChat(
     }, lang);
 
     let responseText = result.text;
+
+    // レベル再判定チェック
+    if (shouldReassessLevel(user)) {
+      const { level, cleanResponse } = extractLevel(responseText);
+      responseText = cleanResponse;
+      if (level && level !== user.englishLevel) {
+        const { Timestamp: Ts } = await import("firebase-admin/firestore");
+        const previousLevel = user.englishLevel;
+        await updateUser(userId, {
+          englishLevel: level as User["englishLevel"],
+          levelHistory: [
+            ...(user.levelHistory ?? []),
+            { level, changedAt: Ts.now() },
+          ],
+        }, lang);
+        const levelNames: Record<string, string> = {
+          beginner: "Beginner",
+          intermediate: "Intermediate",
+          advanced: "Advanced",
+        };
+        responseText += `\n\n🎊 レベルアップ！ ${levelNames[previousLevel] ?? previousLevel} → ${levelNames[level] ?? level}\nこれまでの努力の成果です！`;
+      }
+    }
+
     if (milestoneResult.messages.length > 0) {
       responseText += "\n\n" + milestoneResult.messages.join("\n");
     }

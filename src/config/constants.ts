@@ -21,3 +21,6 @@ export const AI_TIMEOUT_MS = 30000;
 export const MAX_RETRIES = 3;
 export const PUSH_BATCH_SIZE = 10;
 export const PUSH_BATCH_DELAY_MS = 200;
+
+/** Re-assess user level every N total chats (text + voice) */
+export const LEVEL_REASSESS_INTERVAL = 30;

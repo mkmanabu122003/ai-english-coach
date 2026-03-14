@@ -35,9 +35,29 @@ const MILESTONES: MilestoneDefinition[] = [
     messageKey: "streak7",
   },
   {
+    id: "streak_14",
+    check: (_user, ctx) => ctx.newStreak === 14,
+    messageKey: "streak14",
+  },
+  {
     id: "streak_30",
     check: (_user, ctx) => ctx.newStreak === 30,
     messageKey: "streak30",
+  },
+  {
+    id: "total_10",
+    check: (_user, ctx) => ctx.newTotalChats + ctx.newTotalVoice === 10,
+    messageKey: "total10",
+  },
+  {
+    id: "total_30",
+    check: (_user, ctx) => ctx.newTotalChats + ctx.newTotalVoice === 30,
+    messageKey: "total30",
+  },
+  {
+    id: "total_50",
+    check: (_user, ctx) => ctx.newTotalChats + ctx.newTotalVoice === 50,
+    messageKey: "total50",
   },
   {
     id: "total_100",
