@@ -15,6 +15,46 @@
         { "fieldPath": "isActive", "order": "ASCENDING" },
         { "fieldPath": "pushTime", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "healthScore", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "usersEs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "healthScore", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "lastActiveDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "usersEs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "lastActiveDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "adminActions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "targetUserId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

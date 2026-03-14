@@ -2,7 +2,8 @@ import * as logger from "firebase-functions/logger";
 import { Request } from "firebase-functions/v2/https";
 import { Response } from "express";
 import { validateSignature, replyText, getProfile } from "../services/line";
-import { createUser, getUser, updateUser } from "../services/firestore";
+import { createUser, getUser, updateUser, incrementDailyStat } from "../services/firestore";
+import { getTodayJST } from "../utils/dateUtils";
 import { getSecret } from "../config/secrets";
 import { handleTextChat } from "./textChat";
 import { handleVoiceChat } from "./voiceChat";
@@ -60,7 +61,7 @@ async function processEvent(
   try {
     switch (eventType) {
       case "follow": {
-        // createUser + ウェルカムメッセージ
+        // createUser + ウェルカムメッセージ + 統計カウンター
         const existing = await getUser(userId, lang);
         if (!existing) {
           const profile = await getProfile(userId, lang);
@@ -68,6 +69,7 @@ async function processEvent(
         } else if (!existing.isActive) {
           await updateUser(userId, { isActive: true }, lang);
         }
+        await incrementDailyStat(getTodayJST(), "newFollows", lang);
         if (replyToken) {
           await replyText(replyToken, strings.welcomeMessage, lang);
         }
@@ -76,6 +78,7 @@ async function processEvent(
 
       case "unfollow": {
         await updateUser(userId, { isActive: false }, lang);
+        await incrementDailyStat(getTodayJST(), "unfollows", lang);
         break;
       }
 

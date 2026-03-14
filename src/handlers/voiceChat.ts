@@ -4,6 +4,7 @@ import {
   createUser,
   updateUser,
   addChatLog,
+  incrementDailyStat,
 } from "../services/firestore";
 import { getProfile, replyText, getContent } from "../services/line";
 import { chatCompletion, transcribeAudio } from "../services/openai";
@@ -40,6 +41,7 @@ export async function handleVoiceChat(
     const todayJST = getTodayJST();
     const rateLimit = checkRateLimit(user, "voice", todayJST, lang);
     if (!rateLimit.allowed) {
+      await incrementDailyStat(todayJST, "rateLimitHits", lang);
       await replyText(replyToken, rateLimit.message!, lang);
       return;
     }
@@ -114,7 +116,7 @@ export async function handleVoiceChat(
 
     await replyText(replyToken, responseText, lang);
 
-    // 9. addChatLog (type: "voice", userMessage: 文字起こし結果)
+    // 9. addChatLog + 統計カウンター更新
     await addChatLog(userId, {
       type: "voice",
       userMessage: transcription,
@@ -125,7 +127,18 @@ export async function handleVoiceChat(
       },
     }, lang);
 
-    // 10. updateStreak + dailyVoiceCount++ + totalVoice++ + milestones
+    // 統計カウンターのインクリメント
+    const statPromises: Promise<void>[] = [
+      incrementDailyStat(todayJST, "voiceChats", lang),
+      incrementDailyStat(todayJST, "promptTokens", lang, result.usage.promptTokens),
+      incrementDailyStat(todayJST, "completionTokens", lang, result.usage.completionTokens),
+    ];
+    if (user.lastActiveDate !== todayJST) {
+      statPromises.push(incrementDailyStat(todayJST, "dau", lang));
+    }
+    await Promise.all(statPromises);
+
+    // 10. updateStreak + dailyVoiceCount++ + totalVoice++ + milestones + onboarding
     const counterUpdates: Partial<User> = {
       ...streakUpdates,
       dailyVoiceCount: rateLimit.resetNeeded ? 1 : user.dailyVoiceCount + 1,
@@ -141,6 +154,26 @@ export async function handleVoiceChat(
         ...milestoneResult.ids,
       ];
     }
+
+    // onboardingStatus 更新
+    const onboarding = user.onboardingStatus ?? {
+      firstText: false, levelSet: false, pushTimeSet: false,
+      firstVoice: false, streak3: false,
+    };
+    let onboardingChanged = false;
+    if (!onboarding.firstVoice && user.totalVoice === 0) {
+      onboarding.firstVoice = true;
+      onboardingChanged = true;
+    }
+    const newStreak = streakUpdates.currentStreak ?? user.currentStreak;
+    if (!onboarding.streak3 && newStreak >= 3) {
+      onboarding.streak3 = true;
+      onboardingChanged = true;
+    }
+    if (onboardingChanged) {
+      counterUpdates.onboardingStatus = onboarding;
+    }
+
     await updateUser(userId, counterUpdates, lang);
   }, lang);
 }

@@ -79,7 +79,17 @@ async function sendDailyPush(user: User, todayJST: string, lang: TargetLanguage)
     if (updatedRecent.length > 7) {
       updatedRecent.splice(0, updatedRecent.length - 7);
     }
-    await updateUser(user.lineUserId, { recentQuestions: updatedRecent }, lang);
+    await updateUser(user.lineUserId, {
+      recentQuestions: updatedRecent,
+      interventions: [
+        ...(user.interventions ?? []),
+        {
+          type: "auto_nudge" as const,
+          content: message,
+          sentAt: Timestamp.now(),
+        },
+      ],
+    }, lang);
   } catch (err) {
     logger.error("dailyPush: failed for user", {
       userId: user.lineUserId,

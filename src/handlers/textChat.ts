@@ -6,6 +6,7 @@ import {
   updateUser,
   addChatLog,
   getRecentChatLogs,
+  incrementDailyStat,
 } from "../services/firestore";
 import { getProfile, replyText } from "../services/line";
 import { chatCompletion } from "../services/openai";
@@ -60,6 +61,7 @@ export async function handleTextChat(
     const todayJST = getTodayJST();
     const rateLimit = checkRateLimit(user, "text", todayJST, lang);
     if (!rateLimit.allowed) {
+      await incrementDailyStat(todayJST, "rateLimitHits", lang);
       await replyText(replyToken, rateLimit.message!, lang);
       return;
     }
@@ -90,14 +92,23 @@ export async function handleTextChat(
       latencyMs,
     });
 
-    // 7. englishLevel "unset" ならレベル抽出・更新
+    // 7. englishLevel "unset" ならレベル抽出・更新 + levelHistory記録
     let responseText = result.text;
     if (user.englishLevel === "unset") {
       const { level, cleanResponse } = extractLevel(responseText);
       responseText = cleanResponse;
       if (level) {
+        const { Timestamp: Ts } = await import("firebase-admin/firestore");
         await updateUser(userId, {
           englishLevel: level as User["englishLevel"],
+          levelHistory: [
+            ...(user.levelHistory ?? []),
+            { level, changedAt: Ts.now() },
+          ],
+          onboardingStatus: {
+            ...(user.onboardingStatus ?? { firstText: false, levelSet: false, pushTimeSet: false, firstVoice: false, streak3: false }),
+            levelSet: true,
+          },
         }, lang);
       }
     }
@@ -127,7 +138,7 @@ export async function handleTextChat(
 
     await replyText(replyToken, responseText, lang);
 
-    // 9. addChatLog
+    // 9. addChatLog + 統計カウンター更新
     await addChatLog(userId, {
       type: "text",
       userMessage: sanitized,
@@ -138,7 +149,23 @@ export async function handleTextChat(
       },
     }, lang);
 
-    // 10. updateStreak + dailyTextCount++ + totalChats++ + milestones
+    // 統計カウンターのインクリメント（日次統計ドキュメントへ）
+    const statPromises: Promise<void>[] = [
+      incrementDailyStat(todayJST, "textChats", lang),
+      incrementDailyStat(todayJST, "promptTokens", lang, result.usage.promptTokens),
+      incrementDailyStat(todayJST, "completionTokens", lang, result.usage.completionTokens),
+    ];
+    // DAU: 当日初チャットの場合のみカウント
+    if (user.lastActiveDate !== todayJST) {
+      statPromises.push(incrementDailyStat(todayJST, "dau", lang));
+    }
+    // 初回チャットユーザー
+    if (user.totalChats === 0) {
+      statPromises.push(incrementDailyStat(todayJST, "firstChatUsers", lang));
+    }
+    await Promise.all(statPromises);
+
+    // 10. updateStreak + dailyTextCount++ + totalChats++ + milestones + onboarding
     const counterUpdates: Partial<User> = {
       ...streakUpdates,
       dailyTextCount: rateLimit.resetNeeded ? 1 : user.dailyTextCount + 1,
@@ -153,6 +180,25 @@ export async function handleTextChat(
         ...(user.achievedMilestones ?? []),
         ...milestoneResult.ids,
       ];
+    }
+
+    // onboardingStatus 更新
+    const onboarding = user.onboardingStatus ?? {
+      firstText: false, levelSet: false, pushTimeSet: false,
+      firstVoice: false, streak3: false,
+    };
+    let onboardingChanged = false;
+    if (!onboarding.firstText && user.totalChats === 0) {
+      onboarding.firstText = true;
+      onboardingChanged = true;
+    }
+    const newStreak = streakUpdates.currentStreak ?? user.currentStreak;
+    if (!onboarding.streak3 && newStreak >= 3) {
+      onboarding.streak3 = true;
+      onboardingChanged = true;
+    }
+    if (onboardingChanged) {
+      counterUpdates.onboardingStatus = onboarding;
     }
 
     await updateUser(userId, counterUpdates, lang);
