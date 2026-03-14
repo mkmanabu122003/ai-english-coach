@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const lang = searchParams.get("lang") || "en";
+    const lang = searchParams.get("lang") || "all";
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)));
     const allowedSortFields = ["createdAt", "displayName", "language", "plan", "englishLevel", "healthScore", "currentStreak", "lastActiveDate", "totalChats"];
@@ -31,16 +31,52 @@ export async function GET(request: NextRequest) {
     const preset = searchParams.get("preset");
 
     const db = getAdminDb();
-    const collectionName = getCollectionName(lang);
 
-    // Fetch all users from collection (acceptable for <10k users)
-    const snapshot = await db.collection(collectionName).get();
-
+    // Fetch users from collection(s)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let users: any[] = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    let users: any[] = [];
+
+    if (lang === "all") {
+      // Fetch from both collections in parallel
+      const [enSnapshot, esSnapshot] = await Promise.all([
+        db.collection("users").get(),
+        db.collection("usersEs").get(),
+      ]);
+      const enUsers = enSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      const esUsers = esSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      users = [...enUsers, ...esUsers];
+    } else {
+      const collectionName = getCollectionName(lang);
+      const snapshot = await db.collection(collectionName).get();
+      users = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    }
+
+    // Build a set of lineUserIds that exist in multiple languages
+    const lineUserIdLangs = new Map<string, string[]>();
+    for (const u of users) {
+      const uid = u.lineUserId || u.id;
+      const existing = lineUserIdLangs.get(uid) || [];
+      existing.push(u.language || "en");
+      lineUserIdLangs.set(uid, existing);
+    }
+
+    // Attach linkedLanguages to each user
+    for (const u of users) {
+      const uid = u.lineUserId || u.id;
+      const langs = lineUserIdLangs.get(uid) || [];
+      if (langs.length > 1) {
+        u.linkedLanguages = langs;
+      }
+    }
 
     // Apply preset filters
     if (preset === "churnRisk") {
@@ -130,6 +166,22 @@ export async function GET(request: NextRequest) {
 
       return order === "asc" ? aVal - bVal : bVal - aVal;
     });
+
+    // Group users by lineUserId for display ordering
+    // Users with the same lineUserId should be adjacent
+    if (lang === "all") {
+      const grouped: typeof users = [];
+      const seen = new Set<string>();
+      for (const u of users) {
+        const uid = u.lineUserId || u.id;
+        if (seen.has(uid)) continue;
+        seen.add(uid);
+        // Add all users with this lineUserId together
+        const sameUser = users.filter((u2) => (u2.lineUserId || u2.id) === uid);
+        grouped.push(...sameUser);
+      }
+      users = grouped;
+    }
 
     // Paginate
     const offset = (page - 1) * limit;
