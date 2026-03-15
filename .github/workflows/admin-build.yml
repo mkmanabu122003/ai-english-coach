@@ -1,0 +1,75 @@
+name: Admin Build & CSS Check
+
+on:
+  push:
+    branches: [main]
+    paths: ['admin/**']
+  pull_request:
+    paths: ['admin/**']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Verify Tailwind CSS was processed
+        run: |
+          CSS_DIR=".next/static/css"
+
+          if [ ! -d "$CSS_DIR" ]; then
+            echo "::error::No CSS output directory found at $CSS_DIR"
+            exit 1
+          fi
+
+          CSS_FILES=$(find "$CSS_DIR" -name "*.css" -type f)
+
+          if [ -z "$CSS_FILES" ]; then
+            echo "::error::No CSS files generated"
+            exit 1
+          fi
+
+          FAILED=0
+
+          for file in $CSS_FILES; do
+            SIZE=$(wc -c < "$file")
+            echo "Checking $file (${SIZE} bytes)"
+
+            if [ "$SIZE" -lt 5000 ]; then
+              echo "::error::CSS file $file is too small (${SIZE} bytes). Tailwind CSS may not have been processed."
+              FAILED=1
+            fi
+
+            if grep -q "@tailwind" "$file"; then
+              echo "::error::CSS file $file contains unprocessed @tailwind directives"
+              FAILED=1
+            fi
+
+            if grep -q "@apply" "$file"; then
+              echo "::error::CSS file $file contains unprocessed @apply directives"
+              FAILED=1
+            fi
+          done
+
+          if [ "$FAILED" -eq 1 ]; then
+            echo ""
+            echo "Tailwind CSS was not processed correctly."
+            echo "Check that postcss.config.mjs and tailwind.config.ts are committed to git."
+            exit 1
+          fi
+
+          echo "All CSS files verified successfully."
