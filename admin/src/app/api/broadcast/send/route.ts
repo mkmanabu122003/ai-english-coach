@@ -2,73 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin, requireAdminOrInstructor } from "@/lib/auth";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { recordAuditLog } from "@/lib/audit";
-
-function getCollectionName(lang: string): string {
-  return lang === "es" ? "usersEs" : "users";
-}
-
-function getTodayJST(): string {
-  const now = new Date();
-  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  return jst.toISOString().slice(0, 10);
-}
-
-interface BroadcastFilters {
-  lang?: string;
-  plan?: string;
-  level?: string;
-  healthMin?: number;
-  healthMax?: number;
-  lastActiveDaysAgo?: number;
-  onboardingComplete?: boolean;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyBroadcastFilters(users: any[], filters: BroadcastFilters): any[] {
-  let filtered = [...users];
-
-  if (filters.plan) {
-    filtered = filtered.filter((u) => u.plan === filters.plan);
-  }
-
-  if (filters.level) {
-    filtered = filtered.filter((u) => u.englishLevel === filters.level);
-  }
-
-  if (filters.healthMin !== undefined && filters.healthMin !== null) {
-    filtered = filtered.filter((u) => (u.healthScore ?? 0) >= filters.healthMin!);
-  }
-
-  if (filters.healthMax !== undefined && filters.healthMax !== null) {
-    filtered = filtered.filter((u) => (u.healthScore ?? 100) <= filters.healthMax!);
-  }
-
-  if (filters.lastActiveDaysAgo !== undefined && filters.lastActiveDaysAgo !== null) {
-    const today = getTodayJST();
-    const cutoffDate = new Date(today);
-    cutoffDate.setDate(cutoffDate.getDate() - filters.lastActiveDaysAgo);
-    const cutoffStr = cutoffDate.toISOString().slice(0, 10);
-    filtered = filtered.filter((u) => {
-      const lastActive = u.lastActiveDate || "";
-      return lastActive <= cutoffStr;
-    });
-  }
-
-  if (filters.onboardingComplete !== undefined && filters.onboardingComplete !== null) {
-    filtered = filtered.filter((u) => {
-      const os = u.onboardingStatus;
-      if (!os) return !filters.onboardingComplete;
-      const isComplete = os.firstText && os.levelSet && os.pushTimeSet && os.firstVoice && os.streak3;
-      return filters.onboardingComplete ? isComplete : !isComplete;
-    });
-  }
-
-  return filtered;
-}
+import { applyBroadcastFilters, getCollectionName, getTodayJST, type BroadcastFilters } from "@/lib/broadcast-filters";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+const MAX_MESSAGE_LENGTH = 5000;
 
 export async function POST(request: NextRequest) {
   // First check basic auth
@@ -90,6 +30,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return NextResponse.json(
+        { error: `Message must be ${MAX_MESSAGE_LENGTH} characters or less` },
+        { status: 400 }
+      );
+    }
+
     const lang = filters.lang || "en";
     const db = getAdminDb();
     const collectionName = getCollectionName(lang);
@@ -104,8 +51,11 @@ export async function POST(request: NextRequest) {
 
     const matchingUsers = applyBroadcastFilters(allUsers, filters);
 
-    // Safety check: if >50 users, require admin role
-    if (matchingUsers.length > 50) {
+    // 実際に送信可能なユーザー（lineUserIdあり）のみ対象
+    const sendableUsers = matchingUsers.filter((u) => !!u.lineUserId);
+
+    // Safety check: if >50 sendable users, require admin role
+    if (sendableUsers.length > 50) {
       try {
         await requireAdmin();
       } catch {
@@ -147,13 +97,10 @@ export async function POST(request: NextRequest) {
     let sentCount = 0;
     const batchSize = 10;
 
-    for (let i = 0; i < matchingUsers.length; i += batchSize) {
-      const batch = matchingUsers.slice(i, i + batchSize);
+    for (let i = 0; i < sendableUsers.length; i += batchSize) {
+      const batch = sendableUsers.slice(i, i + batchSize);
 
       const sendPromises = batch.map(async (user) => {
-        const lineUserId = user.lineUserId;
-        if (!lineUserId) return false;
-
         try {
           const response = await fetch(
             "https://api.line.me/v2/bot/message/push",
@@ -164,7 +111,7 @@ export async function POST(request: NextRequest) {
                 Authorization: `Bearer ${channelAccessToken}`,
               },
               body: JSON.stringify({
-                to: lineUserId,
+                to: user.lineUserId,
                 messages: [
                   {
                     type: "text",
@@ -180,14 +127,14 @@ export async function POST(request: NextRequest) {
           } else {
             const errorBody = await response.text();
             console.error(
-              `Failed to send to ${lineUserId}:`,
+              `Failed to send to ${user.lineUserId}:`,
               response.status,
               errorBody
             );
             return false;
           }
         } catch (err) {
-          console.error(`Error sending to ${lineUserId}:`, err);
+          console.error(`Error sending to ${user.lineUserId}:`, err);
           return false;
         }
       });
@@ -196,7 +143,7 @@ export async function POST(request: NextRequest) {
       sentCount += results.filter(Boolean).length;
 
       // Wait 200ms between batches
-      if (i + batchSize < matchingUsers.length) {
+      if (i + batchSize < sendableUsers.length) {
         await sleep(200);
       }
     }
@@ -209,12 +156,19 @@ export async function POST(request: NextRequest) {
         filters,
         message: message.trim(),
         targetCount: matchingUsers.length,
+        sendableCount: sendableUsers.length,
         sentCount,
         lang,
       },
     });
 
-    return NextResponse.json({ sent: sentCount });
+    return NextResponse.json({
+      sent: sentCount,
+      targetCount: matchingUsers.length,
+      sendableCount: sendableUsers.length,
+      skippedNoLineId: matchingUsers.length - sendableUsers.length,
+      failedCount: sendableUsers.length - sentCount,
+    });
   } catch (error) {
     console.error("Error sending broadcast:", error);
     return NextResponse.json(

@@ -67,11 +67,14 @@ export default function BroadcastPage() {
   });
   const [message, setMessage] = useState("");
   const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [previewNoLineId, setPreviewNoLineId] = useState<number>(0);
   const [previewing, setPreviewing] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<{
     success: boolean;
     sent?: number;
+    targetCount?: number;
+    failedCount?: number;
     error?: string;
   } | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -127,6 +130,7 @@ export default function BroadcastPage() {
       if (!res.ok) throw new Error("Failed to preview");
       const data = await res.json();
       setPreviewCount(data.count ?? 0);
+      setPreviewNoLineId(data.noLineUserId ?? 0);
     } catch (err) {
       console.error("Error previewing:", err);
     } finally {
@@ -155,7 +159,12 @@ export default function BroadcastPage() {
         });
       } else {
         const data = await res.json();
-        setSendResult({ success: true, sent: data.sent });
+        setSendResult({
+          success: true,
+          sent: data.sent,
+          targetCount: data.targetCount,
+          failedCount: data.failedCount,
+        });
         setMessage("");
         setPreviewCount(null);
       }
@@ -171,6 +180,7 @@ export default function BroadcastPage() {
   const handleFilterChange = (key: keyof BroadcastFilters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setPreviewCount(null);
+    setPreviewNoLineId(0);
   };
 
   return (
@@ -339,10 +349,15 @@ export default function BroadcastPage() {
             </Button>
 
             {previewCount !== null && (
-              <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-center">
+              <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-center space-y-1">
                 <p className="text-sm text-blue-800">
-                  対象ユーザー: <strong>{previewCount}人</strong>
+                  送信対象: <strong>{previewCount}人</strong>
                 </p>
+                {previewNoLineId > 0 && (
+                  <p className="text-xs text-amber-700">
+                    ※ LINE未連携のため送信不可: {previewNoLineId}人
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
@@ -375,17 +390,26 @@ export default function BroadcastPage() {
 
             {sendResult && (
               <div
-                className={`rounded-md p-3 text-center ${
+                className={`rounded-md p-3 text-center space-y-1 ${
                   sendResult.success
                     ? "bg-green-50 border border-green-200 text-green-800"
                     : "bg-red-50 border border-red-200 text-red-800"
                 }`}
               >
-                <p className="text-sm">
-                  {sendResult.success
-                    ? `${sendResult.sent}人にメッセージを送信しました`
-                    : `エラー: ${sendResult.error}`}
-                </p>
+                {sendResult.success ? (
+                  <>
+                    <p className="text-sm font-medium">
+                      {sendResult.sent}人にメッセージを送信しました
+                    </p>
+                    {(sendResult.failedCount ?? 0) > 0 && (
+                      <p className="text-xs text-amber-700">
+                        送信失敗: {sendResult.failedCount}人
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm">エラー: {sendResult.error}</p>
+                )}
               </div>
             )}
           </CardContent>
