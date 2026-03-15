@@ -51,19 +51,50 @@ export async function dailyPush(lang: TargetLanguage = "en"): Promise<void> {
 
 async function sendDailyPush(user: User, todayJST: string, lang: TargetLanguage): Promise<void> {
   try {
-    // lastActiveDate === today → skip（今日学習済み）
+    const strings = getLangStrings(lang);
+
+    // 施策5: 学習済みユーザーには励ましメッセージ（スキップではなく）
     if (user.lastActiveDate === todayJST) {
+      const msgFns = strings.dailyCompletedMessages;
+      const msgFn = msgFns[Math.floor(Math.random() * msgFns.length)];
+      await pushText(user.lineUserId, msgFn(user.currentStreak), lang);
       return;
+    }
+
+    // 施策4: 14日以上不活動ユーザーは月曜のみ週1回送信
+    const inactiveDays = getInactiveDays(user, todayJST);
+    if (inactiveDays >= 14) {
+      const dayOfWeek = new Date(todayJST + "T00:00:00Z").getUTCDay();
+      if (dayOfWeek !== 1) {
+        // 月曜以外はスキップ
+        return;
+      }
     }
 
     // nudgeタイプ判定
     const nudgeType = determineNudgeType(user, todayJST);
     const nudgeMessage = getNudgeMessage(nudgeType, lang);
 
-    // 質問選択: レベルに合った、recentQuestionsに含まれない質問をランダム選択
-    const question = pickQuestion(user.recentQuestions, user.englishLevel, lang);
+    // 施策4: comebackナッジ時はレベルを1段階下げて出題
+    let questionLevel = user.englishLevel;
+    if (nudgeType === "comeback") {
+      if (questionLevel === "advanced") questionLevel = "intermediate";
+      else if (questionLevel === "intermediate") questionLevel = "beginner";
+    }
 
-    const message = `${nudgeMessage}\n\n🗣️ ${question.question}`;
+    // 質問選択: レベルに合った、recentQuestionsに含まれない質問をランダム選択
+    const question = pickQuestion(user.recentQuestions, questionLevel, lang);
+
+    // 施策7: 前日の未回答問題リマインド
+    let reminderSuffix = "";
+    if (
+      user.lastPushQuestion &&
+      !user.lastPushQuestion.answered
+    ) {
+      reminderSuffix = strings.unansweredReminderTemplate(user.lastPushQuestion.questionText);
+    }
+
+    const message = `${nudgeMessage}\n\n🗣️ ${question.question}${reminderSuffix}`;
     await pushText(user.lineUserId, message, lang);
 
     logger.info("Push sent", {
@@ -81,6 +112,11 @@ async function sendDailyPush(user: User, todayJST: string, lang: TargetLanguage)
     }
     await updateUser(user.lineUserId, {
       recentQuestions: updatedRecent,
+      lastPushQuestion: {
+        questionText: question.question,
+        sentAt: Timestamp.now(),
+        answered: false,
+      },
       interventions: [
         ...(user.interventions ?? []),
         {
@@ -101,20 +137,30 @@ async function sendDailyPush(user: User, todayJST: string, lang: TargetLanguage)
   }
 }
 
+function getInactiveDays(user: User, todayJST: string): number {
+  if (!user.lastActiveDate) return Infinity;
+  const lastActive = new Date(user.lastActiveDate + "T00:00:00Z");
+  const today = new Date(todayJST + "T00:00:00Z");
+  return Math.floor(
+    (today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24)
+  );
+}
+
 function determineNudgeType(user: User, todayJST: string): NudgeType {
   if (!user.lastActiveDate) {
     return "gentle_nudge";
   }
 
-  const lastActive = new Date(user.lastActiveDate + "T00:00:00Z");
-  const today = new Date(todayJST + "T00:00:00Z");
-  const diffDays = Math.floor(
-    (today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24)
-  );
+  const diffDays = getInactiveDays(user, todayJST);
 
   // 連続学習中（昨日も学習していて、当日まだ未学習）
   if (diffDays === 1 && user.currentStreak >= 1) {
     return "streak_boost";
+  }
+
+  // 施策4: 7日以上不活動 → comeback
+  if (diffDays >= 7) {
+    return "comeback";
   }
 
   // 未学習3日以上
@@ -130,17 +176,15 @@ function determineNudgeType(user: User, todayJST: string): NudgeType {
 
 export async function weeklyReport(lang: TargetLanguage = "en"): Promise<void> {
   const allUsers = await getAllActiveUsers(lang);
-  // Freeプランユーザーは週次レポート対象外
-  const users = allUsers.filter((u) => u.plan !== "free");
-  logger.info("weeklyReport: target users", { lang, count: users.length, excluded: allUsers.length - users.length });
+  logger.info("weeklyReport: target users", { lang, count: allUsers.length });
 
   // バッチ処理: 10人ずつ、間に200msディレイ
-  for (let i = 0; i < users.length; i += PUSH_BATCH_SIZE) {
-    const batch = users.slice(i, i + PUSH_BATCH_SIZE);
+  for (let i = 0; i < allUsers.length; i += PUSH_BATCH_SIZE) {
+    const batch = allUsers.slice(i, i + PUSH_BATCH_SIZE);
     await Promise.allSettled(
       batch.map((user) => sendWeeklyReport(user, lang))
     );
-    if (i + PUSH_BATCH_SIZE < users.length) {
+    if (i + PUSH_BATCH_SIZE < allUsers.length) {
       await sleep(PUSH_BATCH_DELAY_MS);
     }
   }
@@ -186,37 +230,44 @@ async function sendWeeklyReport(user: User, lang: TargetLanguage): Promise<void>
         ? topics.slice(-5).join(", ")
         : "なし";
 
-    // buildReportPromptでAIにコメント生成
-    const prompt = buildReportPrompt({
-      displayName: user.displayName,
-      textCount,
-      voiceCount,
-      activeDays,
-      currentStreak: user.currentStreak,
-      topTopics,
-    }, lang);
+    // 施策3: FreeユーザーにはAI生成コメントなしの簡易レポート
+    let reportText: string;
+    if (user.plan === "free") {
+      reportText =
+        strings.weeklyReportHeader(textCount, voiceCount, activeDays, user.currentStreak) +
+        strings.weeklyReportFreeFooter;
+    } else {
+      // ProユーザーにはAI生成コメント付きレポート
+      const prompt = buildReportPrompt({
+        displayName: user.displayName,
+        textCount,
+        voiceCount,
+        activeDays,
+        currentStreak: user.currentStreak,
+        topTopics,
+      }, lang);
 
-    const startMs = Date.now();
-    const result = await chatCompletion(
-      [{ role: "user", content: prompt }],
-      200
-    );
-    const latencyMs = Date.now() - startMs;
+      const startMs = Date.now();
+      const result = await chatCompletion(
+        [{ role: "user", content: prompt }],
+        200
+      );
+      const latencyMs = Date.now() - startMs;
 
-    logger.info("API call completed", {
-      userId: user.lineUserId,
-      type: "weekly_report",
-      lang,
-      model: "claude-sonnet-4",
-      promptTokens: result.usage.promptTokens,
-      completionTokens: result.usage.completionTokens,
-      latencyMs,
-    });
+      logger.info("API call completed", {
+        userId: user.lineUserId,
+        type: "weekly_report",
+        lang,
+        model: "claude-sonnet-4",
+        promptTokens: result.usage.promptTokens,
+        completionTokens: result.usage.completionTokens,
+        latencyMs,
+      });
 
-    // フォーマットして送信
-    const reportText =
-      strings.weeklyReportHeader(textCount, voiceCount, activeDays, user.currentStreak) +
-      result.text;
+      reportText =
+        strings.weeklyReportHeader(textCount, voiceCount, activeDays, user.currentStreak) +
+        result.text;
+    }
 
     await pushText(user.lineUserId, reportText, lang);
 

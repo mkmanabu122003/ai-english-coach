@@ -32,7 +32,7 @@ export interface LanguageStrings {
     pushTimeSuccessReply: (time: string) => string;
     notifOffReply: string;
     notifOnReply: (time: string) => string;
-    levelCheckReply: (level: string, streak: number, totalChats: number) => string;
+    levelCheckReply: (level: string, streak: number, totalChats: number, longestStreak: number) => string;
     helpReply: string;
   };
 
@@ -78,6 +78,26 @@ export interface LanguageStrings {
 
   // Nudge messages
   nudgeMessages: Record<NudgeType, string[]>;
+
+  // Onboarding navigation (施策1)
+  onboardingMessages: {
+    afterLevelSet: string;
+    afterPushTimeSet: string;
+    afterFirstVoice: string;
+    afterStreak3: string;
+  };
+
+  // Streak recovery (施策2)
+  streakRecoveryMessage: (longestStreak: number) => string;
+
+  // Free weekly report footer (施策3)
+  weeklyReportFreeFooter: string;
+
+  // Daily completed encouragement (施策5)
+  dailyCompletedMessages: ((streak: number) => string)[];
+
+  // Unanswered push reminder (施策7)
+  unansweredReminderTemplate: (questionText: string) => string;
 }
 
 const EN_STRINGS: LanguageStrings = {
@@ -116,8 +136,8 @@ const EN_STRINGS: LanguageStrings = {
     pushTimeSuccessReply: (time: string) => `通知時間を ${time} に変更しました`,
     notifOffReply: "通知をオフにしました",
     notifOnReply: (time: string) => `通知をオンにしました。毎日${time}に届きます`,
-    levelCheckReply: (level: string, streak: number, totalChats: number) =>
-      `レベル: ${level}\n連続学習: ${streak}日\n累計チャット: ${totalChats}回`,
+    levelCheckReply: (level: string, streak: number, totalChats: number, longestStreak: number) =>
+      `レベル: ${level}\n連続学習: ${streak}日（最長: ${longestStreak}日）\n累計チャット: ${totalChats}回`,
     helpReply:
       "【使い方】\n" +
       "・英文を送ると添削します\n" +
@@ -203,7 +223,45 @@ const EN_STRINGS: LanguageStrings = {
       "連続学習が続いています！今日も1問チャレンジして記録を伸ばしましょう 🔥",
       "ストリーク継続中！この調子で今日もやってみましょう 🎯",
     ],
+    comeback: [
+      "しばらくお会いしていませんね。1分でできる簡単な問題を用意しました。気軽にどうぞ👋",
+      "英語の勘を取り戻しましょう！簡単な問題から再スタートできます🔄",
+    ],
   },
+
+  onboardingMessages: {
+    afterLevelSet:
+      "\n\n──────\n" +
+      "レベルが判定されました！\n" +
+      "毎日練習問題を届けます。時間を変えたい場合は「通知設定 HH:MM」と送ってください。",
+    afterPushTimeSet:
+      "\n\n──────\n" +
+      "通知設定が完了しました！\n" +
+      "次は音声メッセージも試してみましょう🎤 同じ英文を声に出すと定着率が上がります。",
+    afterFirstVoice:
+      "\n\n──────\n" +
+      "音声練習もクリア！テキストと音声を組み合わせると効果的です。\n" +
+      "まずは3日連続を目指してみましょう 🔥",
+    afterStreak3:
+      "\n\n──────\n" +
+      "3日連続達成！習慣化の第一歩です。\n" +
+      "次は1週間連続を目指しましょう。ここからが本番です！",
+  },
+
+  streakRecoveryMessage: (longestStreak: number) =>
+    "\n\n──────\n" +
+    `💪 おかえりなさい！最長記録は${longestStreak}日です。\nまた1日目からコツコツ積み上げましょう！`,
+
+  weeklyReportFreeFooter:
+    "\n\n💡 Proプランでは毎週あなた専用のアドバイスが届きます。",
+
+  dailyCompletedMessages: [
+    (streak: number) => `今日も練習おつかれさまでした！${streak}日連続です🔥 明日も頑張りましょう！`,
+    (streak: number) => `今日の学習クリア！${streak}日連続、この調子で続けていきましょう 💪`,
+  ],
+
+  unansweredReminderTemplate: (questionText: string) =>
+    `\n\n📌 昨日の問題にまだ答えていません：\n「${questionText}」\n\nもちろん、別の話題でもOKです！`,
 };
 
 const ES_STRINGS: LanguageStrings = {
@@ -242,8 +300,8 @@ const ES_STRINGS: LanguageStrings = {
     pushTimeSuccessReply: (time: string) => `通知時間を ${time} に変更しました`,
     notifOffReply: "通知をオフにしました",
     notifOnReply: (time: string) => `通知をオンにしました。毎日${time}に届きます`,
-    levelCheckReply: (level: string, streak: number, totalChats: number) =>
-      `レベル: ${level}\n連続学習: ${streak}日\n累計チャット: ${totalChats}回`,
+    levelCheckReply: (level: string, streak: number, totalChats: number, longestStreak: number) =>
+      `レベル: ${level}\n連続学習: ${streak}日（最長: ${longestStreak}日）\n累計チャット: ${totalChats}回`,
     helpReply:
       "【使い方】\n" +
       "・スペイン語文を送ると添削します\n" +
@@ -328,7 +386,45 @@ const ES_STRINGS: LanguageStrings = {
       "連続学習が続いています！今日も1問チャレンジして記録を伸ばしましょう 🔥",
       "ストリーク継続中！この調子で今日もやってみましょう 🎯",
     ],
+    comeback: [
+      "しばらくお会いしていませんね。1分でできる簡単な問題を用意しました。気軽にどうぞ👋",
+      "スペイン語の勘を取り戻しましょう！簡単な問題から再スタートできます🔄",
+    ],
   },
+
+  onboardingMessages: {
+    afterLevelSet:
+      "\n\n──────\n" +
+      "レベルが判定されました！\n" +
+      "毎日練習問題を届けます。時間を変えたい場合は「通知設定 HH:MM」と送ってください。",
+    afterPushTimeSet:
+      "\n\n──────\n" +
+      "通知設定が完了しました！\n" +
+      "次は音声メッセージも試してみましょう🎤 同じスペイン語文を声に出すと定着率が上がります。",
+    afterFirstVoice:
+      "\n\n──────\n" +
+      "音声練習もクリア！テキストと音声を組み合わせると効果的です。\n" +
+      "まずは3日連続を目指してみましょう 🔥",
+    afterStreak3:
+      "\n\n──────\n" +
+      "3日連続達成！習慣化の第一歩です。\n" +
+      "次は1週間連続を目指しましょう。ここからが本番です！",
+  },
+
+  streakRecoveryMessage: (longestStreak: number) =>
+    "\n\n──────\n" +
+    `💪 おかえりなさい！最長記録は${longestStreak}日です。\nまた1日目からコツコツ積み上げましょう！`,
+
+  weeklyReportFreeFooter:
+    "\n\n💡 Proプランでは毎週あなた専用のアドバイスが届きます。",
+
+  dailyCompletedMessages: [
+    (streak: number) => `今日も練習おつかれさまでした！${streak}日連続です🔥 明日も頑張りましょう！`,
+    (streak: number) => `今日の学習クリア！${streak}日連続、この調子で続けていきましょう 💪`,
+  ],
+
+  unansweredReminderTemplate: (questionText: string) =>
+    `\n\n📌 昨日の問題にまだ答えていません：\n「${questionText}」\n\nもちろん、別の話題でもOKです！`,
 };
 
 const LANGUAGE_MAP: Record<TargetLanguage, LanguageStrings> = {

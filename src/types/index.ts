@@ -32,6 +32,12 @@ export interface InterventionEntry {
   adminUserId?: string;
 }
 
+export interface LastPushQuestion {
+  questionText: string;
+  sentAt: Timestamp;
+  answered: boolean;
+}
+
 // ── User ──
 
 export interface User {
@@ -57,6 +63,7 @@ export interface User {
   levelHistory: LevelHistoryEntry[];
   planHistory: PlanHistoryEntry[];
   interventions: InterventionEntry[];
+  lastPushQuestion?: LastPushQuestion;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -147,7 +154,7 @@ export interface Question {
 
 export interface NudgeMessage {
   id: string;
-  type: "gentle_nudge" | "strong_nudge" | "streak_boost";
+  type: "gentle_nudge" | "strong_nudge" | "streak_boost" | "comeback";
   language: TargetLanguage;
   text: string;
   isActive: boolean;
