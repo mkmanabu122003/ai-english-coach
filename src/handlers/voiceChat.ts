@@ -16,7 +16,7 @@ import { updateStreak } from "../utils/streak";
 import { checkMilestones } from "../utils/milestones";
 import { getTodayJST } from "../utils/dateUtils";
 import { RATE_LIMITS } from "../config/constants";
-import { TargetLanguage, getLangStrings } from "../config/languages";
+import { TargetLanguage, getLangStrings, LanguageStrings } from "../config/languages";
 import { User } from "../types";
 
 export async function handleVoiceChat(
@@ -138,6 +138,21 @@ export async function handleVoiceChat(
       responseText += "\n\n" + milestoneResult.messages.join("\n");
     }
 
+    // 施策1: オンボーディング段階的ナビゲーション
+    const onboardingNav = getOnboardingNavMessage(user, streakUpdates, "voice", strings);
+    if (onboardingNav) {
+      responseText += onboardingNav;
+    }
+
+    // 施策2: ストリーク切れリカバリー
+    if (
+      user.currentStreak === 0 &&
+      user.longestStreak >= 3 &&
+      (streakUpdates.currentStreak === 1)
+    ) {
+      responseText += strings.streakRecoveryMessage(user.longestStreak);
+    }
+
     await replyText(replyToken, responseText, lang);
 
     // 9. addChatLog + 統計カウンター更新
@@ -198,6 +213,44 @@ export async function handleVoiceChat(
       counterUpdates.onboardingStatus = onboarding;
     }
 
+    // 施策7: プッシュ問題に回答した記録
+    if (user.lastPushQuestion && !user.lastPushQuestion.answered) {
+      counterUpdates.lastPushQuestion = {
+        ...user.lastPushQuestion,
+        answered: true,
+      };
+    }
+
     await updateUser(userId, counterUpdates, lang);
   }, lang);
+}
+
+/** 施策1: オンボーディング完了時の次ステップ誘導メッセージ */
+function getOnboardingNavMessage(
+  user: User,
+  streakUpdates: Partial<User>,
+  chatType: "text" | "voice",
+  strings: LanguageStrings
+): string | null {
+  const onboarding = user.onboardingStatus ?? {
+    firstText: false, levelSet: false, pushTimeSet: false,
+    firstVoice: false, streak3: false,
+  };
+
+  // firstVoice が今回初めて達成された
+  if (
+    chatType === "voice" &&
+    !onboarding.firstVoice &&
+    user.totalVoice === 0
+  ) {
+    return strings.onboardingMessages.afterFirstVoice;
+  }
+
+  // streak3 が今回初めて達成された
+  const newStreak = streakUpdates.currentStreak ?? user.currentStreak;
+  if (!onboarding.streak3 && newStreak >= 3) {
+    return strings.onboardingMessages.afterStreak3;
+  }
+
+  return null;
 }

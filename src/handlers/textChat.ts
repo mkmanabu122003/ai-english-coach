@@ -47,7 +47,12 @@ export async function handleTextChat(
       if (commandResult.updates) {
         await updateUser(userId, commandResult.updates, lang);
       }
-      await replyText(replyToken, commandResult.reply, lang);
+      // 施策1: 通知設定コマンド後のオンボーディング誘導
+      let commandReply = commandResult.reply;
+      if (commandResult.onboardingKey) {
+        commandReply += strings.onboardingMessages[commandResult.onboardingKey];
+      }
+      await replyText(replyToken, commandReply, lang);
       return;
     }
 
@@ -57,9 +62,21 @@ export async function handleTextChat(
       return;
     }
 
-    // 4. checkRateLimit
+    // 4. checkRateLimit（施策6: FreeプランのTry again免除チェック）
     const todayJST = getTodayJST();
-    const rateLimit = checkRateLimit(user, "text", todayJST, lang);
+    let tryAgainExempt = false;
+    if (user.plan === "free") {
+      const recentLogs = await getRecentChatLogs(userId, 1, lang);
+      if (recentLogs.length > 0) {
+        const lastLog = recentLogs[0];
+        const hasRetryPrompt = lastLog.aiResponse.includes("🔄");
+        const elapsed = lastLog.createdAt
+          ? (Date.now() - lastLog.createdAt.toMillis()) / 1000
+          : Infinity;
+        tryAgainExempt = hasRetryPrompt && elapsed <= 60;
+      }
+    }
+    const rateLimit = checkRateLimit(user, "text", todayJST, lang, tryAgainExempt);
     if (!rateLimit.allowed) {
       await incrementDailyStat(todayJST, "rateLimitHits", lang);
       await replyText(replyToken, rateLimit.message!, lang);
@@ -151,6 +168,21 @@ export async function handleTextChat(
       responseText += "\n\n" + milestoneResult.messages.join("\n");
     }
 
+    // 施策1: オンボーディング段階的ナビゲーション
+    const onboardingNav = getOnboardingNavMessage(user, streakUpdates, "text", strings);
+    if (onboardingNav) {
+      responseText += onboardingNav;
+    }
+
+    // 施策2: ストリーク切れリカバリー
+    if (
+      user.currentStreak === 0 &&
+      user.longestStreak >= 3 &&
+      (streakUpdates.currentStreak === 1)
+    ) {
+      responseText += strings.streakRecoveryMessage(user.longestStreak);
+    }
+
     await replyText(replyToken, responseText, lang);
 
     // 9. addChatLog + 統計カウンター更新
@@ -183,7 +215,9 @@ export async function handleTextChat(
     // 10. updateStreak + dailyTextCount++ + totalChats++ + milestones + onboarding
     const counterUpdates: Partial<User> = {
       ...streakUpdates,
-      dailyTextCount: rateLimit.resetNeeded ? 1 : user.dailyTextCount + 1,
+      dailyTextCount: tryAgainExempt
+        ? (rateLimit.resetNeeded ? 0 : user.dailyTextCount)
+        : (rateLimit.resetNeeded ? 1 : user.dailyTextCount + 1),
       totalChats: newTotalChats,
     };
     if (rateLimit.resetNeeded) {
@@ -216,15 +250,63 @@ export async function handleTextChat(
       counterUpdates.onboardingStatus = onboarding;
     }
 
+    // 施策7: プッシュ問題に回答した記録
+    if (user.lastPushQuestion && !user.lastPushQuestion.answered) {
+      counterUpdates.lastPushQuestion = {
+        ...user.lastPushQuestion,
+        answered: true,
+      };
+    }
+
     await updateUser(userId, counterUpdates, lang);
   }, lang);
+}
+
+/** 施策1: オンボーディング完了時の次ステップ誘導メッセージ */
+function getOnboardingNavMessage(
+  user: User,
+  streakUpdates: Partial<User>,
+  chatType: "text" | "voice",
+  strings: ReturnType<typeof getLangStrings>
+): string | null {
+  const onboarding = user.onboardingStatus ?? {
+    firstText: false, levelSet: false, pushTimeSet: false,
+    firstVoice: false, streak3: false,
+  };
+
+  // levelSet が今回のチャットで新たに設定された（初回テキスト時）
+  if (
+    chatType === "text" &&
+    user.englishLevel === "unset" &&
+    user.totalChats === 0 &&
+    !onboarding.pushTimeSet
+  ) {
+    return strings.onboardingMessages.afterLevelSet;
+  }
+
+  // firstVoice が今回初めて達成された
+  if (
+    chatType === "voice" &&
+    !onboarding.firstVoice &&
+    user.totalVoice === 0
+  ) {
+    return strings.onboardingMessages.afterFirstVoice;
+  }
+
+  // streak3 が今回初めて達成された
+  const newStreak = streakUpdates.currentStreak ?? user.currentStreak;
+  if (!onboarding.streak3 && newStreak >= 3) {
+    return strings.onboardingMessages.afterStreak3;
+  }
+
+  return null;
 }
 
 function handleCommand(
   text: string,
   user: User,
   lang: TargetLanguage
-): { reply: string; updates?: Partial<User> } | null {
+): { reply: string; updates?: Partial<User>; onboardingKey?: keyof ReturnType<typeof getLangStrings>["onboardingMessages"] } | null {
   const strings = getLangStrings(lang);
 
   // 「通知設定 HH:MM」コマンド
@@ -238,9 +320,20 @@ function handleCommand(
       };
     }
     const newTime = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    const onboarding = user.onboardingStatus ?? {
+      firstText: false, levelSet: false, pushTimeSet: false,
+      firstVoice: false, streak3: false,
+    };
+    const updates: Partial<User> = { pushTime: newTime };
+    let onboardingKey: keyof ReturnType<typeof getLangStrings>["onboardingMessages"] | undefined;
+    if (!onboarding.pushTimeSet) {
+      updates.onboardingStatus = { ...onboarding, pushTimeSet: true };
+      onboardingKey = "afterPushTimeSet";
+    }
     return {
       reply: strings.commands.pushTimeSuccessReply(newTime),
-      updates: { pushTime: newTime },
+      updates,
+      onboardingKey,
     };
   }
 
@@ -260,7 +353,8 @@ function handleCommand(
         reply: strings.commands.levelCheckReply(
           user.englishLevel,
           user.currentStreak,
-          user.totalChats
+          user.totalChats,
+          user.longestStreak
         ),
       };
     case strings.commands.help:

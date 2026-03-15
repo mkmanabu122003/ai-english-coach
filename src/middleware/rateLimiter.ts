@@ -26,7 +26,8 @@ export function checkRateLimit(
   user: User,
   type: "text" | "voice",
   todayJST: string,
-  lang: TargetLanguage = "en"
+  lang: TargetLanguage = "en",
+  tryAgainExempt: boolean = false
 ): RateLimitResult {
   const isNewDay = user.lastCountDate !== todayJST;
   const limits = getLimits(user);
@@ -37,6 +38,14 @@ export function checkRateLimit(
   const voiceCount = isNewDay ? 0 : user.dailyVoiceCount;
 
   if (type === "text") {
+    // 施策6: Try again免除 — Freeプランで直前のAIがTry againを含み60秒以内なら通す
+    if (tryAgainExempt && textCount >= limits.textMax) {
+      return {
+        allowed: true,
+        remaining: 0,
+        resetNeeded: isNewDay,
+      };
+    }
     if (textCount >= limits.textMax) {
       if (user.plan === "free") {
         return {

@@ -830,7 +830,7 @@ export const QUESTION_POOL_ES: PushQuestion[] = [
   },
 ];
 
-export type NudgeType = "gentle_nudge" | "strong_nudge" | "streak_boost";
+export type NudgeType = "gentle_nudge" | "strong_nudge" | "streak_boost" | "comeback";
 
 export function getNudgeMessage(type: NudgeType, lang: TargetLanguage = "en"): string {
   const strings = getLangStrings(lang);
