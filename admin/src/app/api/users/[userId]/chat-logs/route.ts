@@ -57,7 +57,7 @@ export async function GET(
     }));
 
     return NextResponse.json({
-      logs,
+      chatLogs: logs,
       total,
       page,
       limit,

@@ -31,6 +31,13 @@ export async function PUT(
       );
     }
 
+    if (!["en", "es"].includes(lang)) {
+      return NextResponse.json(
+        { error: "Invalid language" },
+        { status: 400 }
+      );
+    }
+
     const db = getAdminDb();
     const collectionName = getCollectionName(lang);
     const userRef = db.collection(collectionName).doc(userId);

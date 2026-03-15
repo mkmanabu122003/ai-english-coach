@@ -66,6 +66,7 @@ export default function UserDetailPage() {
   // Admin actions state
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [newLevel, setNewLevel] = useState("");
+  const [pushTimeInput, setPushTimeInput] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -120,6 +121,12 @@ export default function UserDetailPage() {
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
+
+  useEffect(() => {
+    if (user?.pushTime) {
+      setPushTimeInput(user.pushTime);
+    }
+  }, [user?.pushTime]);
 
   useEffect(() => {
     setChatPage(1);
@@ -593,7 +600,8 @@ export default function UserDetailPage() {
                 <Input
                   type="time"
                   className="w-32"
-                  defaultValue={user.pushTime}
+                  value={pushTimeInput}
+                  onChange={(e) => setPushTimeInput(e.target.value)}
                   onBlur={(e) => {
                     if (e.target.value && e.target.value !== user.pushTime) {
                       handlePushTimeChange(e.target.value);

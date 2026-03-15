@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { recordAuditLog } from "@/lib/audit";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 function getCollectionName(lang: string): string {
   return lang === "es" ? "usersEs" : "users";
@@ -31,35 +31,47 @@ export async function PUT(
       );
     }
 
+    if (!["en", "es"].includes(lang)) {
+      return NextResponse.json(
+        { error: "Invalid language" },
+        { status: 400 }
+      );
+    }
+
     const db = getAdminDb();
     const collectionName = getCollectionName(lang);
     const userRef = db.collection(collectionName).doc(userId);
-    const userDoc = await userRef.get();
 
-    if (!userDoc.exists) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    // Use transaction for atomic read-then-write
+    const result = await db.runTransaction(async (tx) => {
+      const userDoc = await tx.get(userRef);
 
-    const userData = userDoc.data()!;
-    const previousLevel = userData.englishLevel;
+      if (!userDoc.exists) {
+        throw new Error("USER_NOT_FOUND");
+      }
 
-    // Update user level and append to levelHistory
-    await userRef.update({
-      englishLevel: level,
-      levelHistory: FieldValue.arrayUnion({
-        level,
-        changedAt: FieldValue.serverTimestamp(),
-        changedBy: admin.uid,
-      }),
-      updatedAt: FieldValue.serverTimestamp(),
+      const userData = userDoc.data()!;
+      const previousLevel = userData.englishLevel;
+
+      tx.update(userRef, {
+        englishLevel: level,
+        levelHistory: FieldValue.arrayUnion({
+          level,
+          changedAt: Timestamp.now(),
+          changedBy: admin.uid,
+        }),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      return { previousLevel };
     });
 
-    // Record audit log
+    // Record audit log (outside transaction — non-critical)
     await recordAuditLog({
       adminUserId: admin.uid,
       action: "level_change",
       targetUserId: userId,
-      details: { from: previousLevel, to: level, lang },
+      details: { from: result.previousLevel, to: level, lang },
     });
 
     // Return updated user
@@ -68,6 +80,11 @@ export async function PUT(
       user: { id: updatedDoc.id, ...updatedDoc.data() },
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "USER_NOT_FOUND") {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+    }
     console.error("Error updating user level:", error);
     return NextResponse.json(
       { error: "Internal server error" },

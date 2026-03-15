@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { recordAuditLog } from "@/lib/audit";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 function getCollectionName(lang: string): string {
   return lang === "es" ? "usersEs" : "users";
@@ -104,7 +104,7 @@ export async function POST(
       interventions: FieldValue.arrayUnion({
         type: "admin_message",
         content: content.trim(),
-        sentAt: FieldValue.serverTimestamp(),
+        sentAt: Timestamp.now(),
         adminUserId: admin.uid,
       }),
       updatedAt: FieldValue.serverTimestamp(),

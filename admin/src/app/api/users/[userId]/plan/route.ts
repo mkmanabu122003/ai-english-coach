@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { recordAuditLog } from "@/lib/audit";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 function getCollectionName(lang: string): string {
   return lang === "es" ? "usersEs" : "users";
@@ -37,55 +37,65 @@ export async function PUT(
       );
     }
 
-    const db = getAdminDb();
-    const collectionName = getCollectionName(lang);
-    const userRef = db.collection(collectionName).doc(userId);
-    const userDoc = await userRef.get();
-
-    if (!userDoc.exists) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const userData = userDoc.data()!;
-    const previousPlan = userData.plan;
-
-    if (previousPlan === plan) {
+    if (!["en", "es"].includes(lang)) {
       return NextResponse.json(
-        { error: "User is already on this plan" },
+        { error: "Invalid language" },
         { status: 400 }
       );
     }
 
-    // Update user plan and append to planHistory
-    await userRef.update({
-      plan,
-      planHistory: FieldValue.arrayUnion({
+    const db = getAdminDb();
+    const collectionName = getCollectionName(lang);
+    const userRef = db.collection(collectionName).doc(userId);
+
+    // Use transaction for atomic read-then-write
+    const updatedUser = await db.runTransaction(async (tx) => {
+      const userDoc = await tx.get(userRef);
+
+      if (!userDoc.exists) {
+        throw new Error("USER_NOT_FOUND");
+      }
+
+      const userData = userDoc.data()!;
+      const previousPlan = userData.plan;
+
+      if (previousPlan === plan) {
+        throw new Error("ALREADY_ON_PLAN");
+      }
+
+      tx.update(userRef, {
         plan,
-        changedAt: FieldValue.serverTimestamp(),
-        changedBy: admin.uid,
-      }),
-      updatedAt: FieldValue.serverTimestamp(),
+        planHistory: FieldValue.arrayUnion({
+          plan,
+          changedAt: Timestamp.now(),
+          changedBy: admin.uid,
+        }),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      // If free -> bot_pro, increment proConversions in daily stats
+      if (previousPlan === "free" && plan === "bot_pro") {
+        const today = getTodayJST();
+        const statsRef = db.collection("stats").doc("daily").collection("dates").doc(today);
+        const langField = lang === "es" ? "es" : "en";
+
+        tx.set(
+          statsRef,
+          { proConversions: { [langField]: FieldValue.increment(1) } },
+          { merge: true }
+        );
+      }
+
+      return { previousPlan };
     });
 
-    // Record audit log
+    // Record audit log (outside transaction — non-critical)
     await recordAuditLog({
       adminUserId: admin.uid,
       action: "plan_change",
       targetUserId: userId,
-      details: { from: previousPlan, to: plan, lang },
+      details: { from: updatedUser.previousPlan, to: plan, lang },
     });
-
-    // If free -> bot_pro, increment proConversions in daily stats
-    if (previousPlan === "free" && plan === "bot_pro") {
-      const today = getTodayJST();
-      const statsRef = db.collection("stats").doc("daily").collection("dates").doc(today);
-      const langField = lang === "es" ? "es" : "en";
-
-      await statsRef.set(
-        { proConversions: { [langField]: FieldValue.increment(1) } },
-        { merge: true }
-      );
-    }
 
     // Return updated user
     const updatedDoc = await userRef.get();
@@ -93,6 +103,14 @@ export async function PUT(
       user: { id: updatedDoc.id, ...updatedDoc.data() },
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "USER_NOT_FOUND") {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+      if (error.message === "ALREADY_ON_PLAN") {
+        return NextResponse.json({ error: "User is already on this plan" }, { status: 400 });
+      }
+    }
     console.error("Error updating user plan:", error);
     return NextResponse.json(
       { error: "Internal server error" },

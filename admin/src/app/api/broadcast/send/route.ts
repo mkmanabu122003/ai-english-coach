@@ -176,7 +176,6 @@ export async function POST(request: NextRequest) {
           );
 
           if (response.ok) {
-            sentCount++;
             return true;
           } else {
             const errorBody = await response.text();
@@ -193,7 +192,8 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      await Promise.all(sendPromises);
+      const results = await Promise.all(sendPromises);
+      sentCount += results.filter(Boolean).length;
 
       // Wait 200ms between batches
       if (i + batchSize < matchingUsers.length) {
