@@ -17,7 +17,9 @@ import {
 import { getLangStrings } from "../src/config/languages";
 import type { TargetLanguage } from "../src/config/languages";
 
-admin.initializeApp();
+admin.initializeApp({
+  projectId: process.env.GCLOUD_PROJECT || "ai-english-coach-bot",
+});
 const db = admin.firestore();
 
 async function migrateQuestions(): Promise<void> {
