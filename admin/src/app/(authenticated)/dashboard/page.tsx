@@ -272,8 +272,8 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Token Usage Chart */}
-      <TokenChart data={tokenTrend} title="トークン使用量 推移（過去30日）" />
+      {/* Token Cost Chart */}
+      <TokenChart data={tokenTrend} title="トークン料金 推移（過去30日）" />
 
       {/* Action Panel */}
       <ActionPanel churnRiskUsers={churnRiskUsers} stats={todayStats} />

@@ -16,6 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+// Claude Sonnet 4 pricing (USD per token)
+const INPUT_COST_PER_TOKEN = 3 / 1_000_000; // $3 per 1M tokens
+const OUTPUT_COST_PER_TOKEN = 15 / 1_000_000; // $15 per 1M tokens
+
 interface TokenEntry {
   date?: string;
   month?: string;
@@ -42,6 +46,12 @@ function formatDateLabel(dateStr: string): string {
     return `${parseInt(parts[1], 10)}/${parseInt(parts[2], 10)}`;
   }
   return dateStr;
+}
+
+function formatCost(value: number): string {
+  if (value >= 1) return `$${value.toFixed(2)}`;
+  if (value >= 0.01) return `$${value.toFixed(3)}`;
+  return `$${value.toFixed(4)}`;
 }
 
 export default function TokensPage() {
@@ -75,31 +85,40 @@ export default function TokensPage() {
     fetchData();
   }, [fetchData]);
 
-  // Transform data for chart
+  // Transform data for chart with cost calculation
   const chartData = data.map((entry) => {
     const dateKey = entry.date || entry.month || "";
+    const prompt = entry.promptTokens?.[lang] ?? 0;
+    const completion = entry.completionTokens?.[lang] ?? 0;
     return {
       date: dateKey,
-      prompt: entry.promptTokens?.[lang] ?? 0,
-      completion: entry.completionTokens?.[lang] ?? 0,
+      inputCost: prompt * INPUT_COST_PER_TOKEN,
+      outputCost: completion * OUTPUT_COST_PER_TOKEN,
+      promptTokens: prompt,
+      completionTokens: completion,
     };
   });
 
   // Calculate summary stats
-  const totalPrompt = chartData.reduce((sum, d) => sum + d.prompt, 0);
-  const totalCompletion = chartData.reduce((sum, d) => sum + d.completion, 0);
-  const totalTokens = totalPrompt + totalCompletion;
-  const avgPerDay =
-    chartData.length > 0 ? Math.round(totalTokens / chartData.length) : 0;
+  const totalPrompt = chartData.reduce((sum, d) => sum + d.promptTokens, 0);
+  const totalCompletion = chartData.reduce(
+    (sum, d) => sum + d.completionTokens,
+    0
+  );
+  const totalInputCost = totalPrompt * INPUT_COST_PER_TOKEN;
+  const totalOutputCost = totalCompletion * OUTPUT_COST_PER_TOKEN;
+  const totalCost = totalInputCost + totalOutputCost;
+  const avgCostPerDay =
+    chartData.length > 0 ? totalCost / chartData.length : 0;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">トークン使用量</h1>
+          <h1 className="text-2xl font-bold">トークン料金</h1>
           <p className="text-sm text-muted-foreground">
-            AIモデルのトークン消費量を分析します
+            AIモデルの利用料金を分析します（Claude Sonnet 4）
           </p>
         </div>
         <div className="flex items-center gap-1 rounded-lg border p-1">
@@ -178,36 +197,45 @@ export default function TokensPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">
-              合計トークン
+              合計料金
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
-              {totalTokens.toLocaleString()}
+            <p className="text-2xl font-bold text-orange-600">
+              {formatCost(totalCost)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {(totalPrompt + totalCompletion).toLocaleString()} tokens
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">
-              Prompt Tokens
+              Input 料金
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-blue-600">
-              {totalPrompt.toLocaleString()}
+              {formatCost(totalInputCost)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {totalPrompt.toLocaleString()} tokens
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">
-              Completion Tokens
+              Output 料金
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-600">
-              {totalCompletion.toLocaleString()}
+              {formatCost(totalOutputCost)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {totalCompletion.toLocaleString()} tokens
             </p>
           </CardContent>
         </Card>
@@ -219,7 +247,10 @@ export default function TokensPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              {avgPerDay.toLocaleString()}
+              {formatCost(avgCostPerDay)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              /{period === "daily" ? "日" : "月"}
             </p>
           </CardContent>
         </Card>
@@ -229,7 +260,7 @@ export default function TokensPage() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
-            トークン使用量推移
+            トークン料金推移
             {period === "daily" ? "（日別）" : "（月別）"}
           </CardTitle>
         </CardHeader>
@@ -256,17 +287,28 @@ export default function TokensPage() {
                     className="text-xs"
                     tick={{ fontSize: 12 }}
                   />
-                  <YAxis className="text-xs" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    className="text-xs"
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(v) => `$${v}`}
+                  />
                   <Tooltip
                     labelFormatter={(label) =>
                       period === "daily" ? `日付: ${label}` : `月: ${label}`
                     }
-                    formatter={(value: number, name: string) => [
-                      value.toLocaleString(),
-                      name === "prompt"
-                        ? "Prompt Tokens"
-                        : "Completion Tokens",
-                    ]}
+                    formatter={(value: number, name: string, props) => {
+                      const { payload } = props;
+                      if (name === "inputCost") {
+                        return [
+                          `${formatCost(value)}（${payload.promptTokens.toLocaleString()} tokens）`,
+                          "Input",
+                        ];
+                      }
+                      return [
+                        `${formatCost(value)}（${payload.completionTokens.toLocaleString()} tokens）`,
+                        "Output",
+                      ];
+                    }}
                     contentStyle={{
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
@@ -276,14 +318,12 @@ export default function TokensPage() {
                   <Legend
                     verticalAlign="bottom"
                     formatter={(value: string) =>
-                      value === "prompt"
-                        ? "Prompt Tokens"
-                        : "Completion Tokens"
+                      value === "inputCost" ? "Input" : "Output"
                     }
                   />
                   <Area
                     type="monotone"
-                    dataKey="prompt"
+                    dataKey="inputCost"
                     stackId="1"
                     stroke="#3b82f6"
                     fill="#3b82f6"
@@ -291,7 +331,7 @@ export default function TokensPage() {
                   />
                   <Area
                     type="monotone"
-                    dataKey="completion"
+                    dataKey="outputCost"
                     stackId="1"
                     stroke="#22c55e"
                     fill="#22c55e"
