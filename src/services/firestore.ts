@@ -196,8 +196,8 @@ export async function incrementDailyStat(
 ): Promise<void> {
   const ref = dailyStatsRef(date);
   await ref.set(
-    { [`${field}.${lang}`]: FieldValue.increment(amount) },
-    { merge: true }
+    { [field]: { [lang]: FieldValue.increment(amount) } },
+    { mergeFields: [`${field}.${lang}`] }
   );
 }
 

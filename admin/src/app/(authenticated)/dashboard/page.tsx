@@ -60,7 +60,7 @@ export default function DashboardPage() {
 
         if (todayRes.ok) {
           const todayData = await todayRes.json();
-          setTodayStats(todayData);
+          setTodayStats(todayData.stats ?? null);
         }
 
         if (rangeRes.ok) {
