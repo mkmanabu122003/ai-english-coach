@@ -459,6 +459,306 @@ export const QUESTION_POOL: PushQuestion[] = [
     question:
       "A guest notices how carefully Japanese people maintain their gardens and asks about the relationship between nature and spirituality in Japan. How do you answer?",
   },
+
+  // ── history (10) ──
+  // beginner
+  {
+    id: "q061",
+    level: "beginner",
+    category: "history",
+    question:
+      "A guest asks who the samurai were. How do you give a simple explanation?",
+  },
+  {
+    id: "q062",
+    level: "beginner",
+    category: "history",
+    question:
+      "Your guest sees a castle and asks what it was used for. How do you explain Japanese castles simply?",
+  },
+  {
+    id: "q063",
+    level: "beginner",
+    category: "history",
+    question:
+      "A guest asks why there are so many old wooden buildings in Japan. How do you explain the tradition of wooden architecture?",
+  },
+  // intermediate
+  {
+    id: "q064",
+    level: "intermediate",
+    category: "history",
+    question:
+      "Your guest wants to know how Japan modernized so quickly during the Meiji era. How do you summarize this transformation?",
+  },
+  {
+    id: "q065",
+    level: "intermediate",
+    category: "history",
+    question:
+      "A guest visiting a castle asks why Japanese castles look so different from European ones. How do you explain the design philosophy?",
+  },
+  {
+    id: "q066",
+    level: "intermediate",
+    category: "history",
+    question:
+      "Your guest asks about geisha and seems to have misconceptions. How do you explain the tradition accurately and respectfully?",
+  },
+  {
+    id: "q067",
+    level: "intermediate",
+    category: "history",
+    question:
+      "A guest is walking through old Edo-period streets and asks what daily life was like back then. How do you paint the picture?",
+  },
+  // advanced
+  {
+    id: "q068",
+    level: "advanced",
+    category: "history",
+    question:
+      "A guest asks about the samurai code of bushido and whether it still influences modern Japanese society. How do you respond?",
+  },
+  {
+    id: "q069",
+    level: "advanced",
+    category: "history",
+    question:
+      "Your guest asks how Japan's period of isolation (sakoku) shaped its unique culture. How do you explain the lasting effects?",
+  },
+  {
+    id: "q070",
+    level: "advanced",
+    category: "history",
+    question:
+      "A guest asks about the relationship between Japan's imperial family and Shinto religion throughout history. How do you navigate this nuanced topic?",
+  },
+
+  // ── seasonal_events (10) ──
+  // beginner
+  {
+    id: "q071",
+    level: "beginner",
+    category: "seasonal_events",
+    question:
+      "A guest asks what Japanese people do on New Year's Day. How do you explain it simply?",
+  },
+  {
+    id: "q072",
+    level: "beginner",
+    category: "seasonal_events",
+    question:
+      "Your guest sees people in yukata at a summer festival. How do you explain what a matsuri is?",
+  },
+  {
+    id: "q073",
+    level: "beginner",
+    category: "seasonal_events",
+    question:
+      "A guest asks about Golden Week. How do you explain why everything is so crowded?",
+  },
+  // intermediate
+  {
+    id: "q074",
+    level: "intermediate",
+    category: "seasonal_events",
+    question:
+      "A guest asks about Japanese New Year traditions. How do you explain hatsumode, osechi, and otoshidama?",
+  },
+  {
+    id: "q075",
+    level: "intermediate",
+    category: "seasonal_events",
+    question:
+      "Your guest visits during Obon and sees lanterns floating on a river. How do you explain this festival and its meaning?",
+  },
+  {
+    id: "q076",
+    level: "intermediate",
+    category: "seasonal_events",
+    question:
+      "A guest asks about setsubun and why people throw beans. How do you make this tradition interesting and understandable?",
+  },
+  {
+    id: "q077",
+    level: "intermediate",
+    category: "seasonal_events",
+    question:
+      "Your guest wants to experience a summer matsuri. How do you describe what happens and how to join in the fun?",
+  },
+  // advanced
+  {
+    id: "q078",
+    level: "advanced",
+    category: "seasonal_events",
+    question:
+      "A guest asks why Christmas in Japan involves KFC and illuminations instead of church. How do you explain the Japanese adaptation of foreign holidays?",
+  },
+  {
+    id: "q079",
+    level: "advanced",
+    category: "seasonal_events",
+    question:
+      "Your guest asks about the significance of Shichi-Go-San and how Japanese rites of passage compare to Western ones. How do you explain?",
+  },
+  {
+    id: "q080",
+    level: "advanced",
+    category: "seasonal_events",
+    question:
+      "A guest is fascinated by how Japan celebrates the changing seasons through food, clothing, and decorations. How do you explain this deep connection to seasonal awareness?",
+  },
+
+  // ── pop_culture (10) ──
+  // beginner
+  {
+    id: "q081",
+    level: "beginner",
+    category: "pop_culture",
+    question:
+      "A guest asks what anime they should watch to learn about Japanese culture. What do you recommend and why?",
+  },
+  {
+    id: "q082",
+    level: "beginner",
+    category: "pop_culture",
+    question:
+      "Your guest wants to visit Akihabara. How do you describe what they can find there?",
+  },
+  {
+    id: "q083",
+    level: "beginner",
+    category: "pop_culture",
+    question:
+      "A guest asks about purikura (photo booths). How do you explain what they are and why they're fun?",
+  },
+  // intermediate
+  {
+    id: "q084",
+    level: "intermediate",
+    category: "pop_culture",
+    question:
+      "A guest asks why anime and manga are so popular worldwide. How do you explain Japan's influence on global pop culture?",
+  },
+  {
+    id: "q085",
+    level: "intermediate",
+    category: "pop_culture",
+    question:
+      "Your guest asks about the concept of 'kawaii' and why cute things are everywhere in Japan, even in official settings. How do you explain it?",
+  },
+  {
+    id: "q086",
+    level: "intermediate",
+    category: "pop_culture",
+    question:
+      "A guest asks about Japanese video game history, from Nintendo to modern gaming. How do you tell this story?",
+  },
+  {
+    id: "q087",
+    level: "intermediate",
+    category: "pop_culture",
+    question:
+      "Your guest is curious about capsule toys (gacha) and asks why adults collect them. How do you explain this aspect of Japanese culture?",
+  },
+  // advanced
+  {
+    id: "q088",
+    level: "advanced",
+    category: "pop_culture",
+    question:
+      "A guest asks about J-pop and idol culture. How do you explain the phenomenon and the unique relationship between idols and fans?",
+  },
+  {
+    id: "q089",
+    level: "advanced",
+    category: "pop_culture",
+    question:
+      "Your guest asks how manga and anime have influenced Japan's 'soft power' diplomacy. How do you discuss this cultural export strategy?",
+  },
+  {
+    id: "q090",
+    level: "advanced",
+    category: "pop_culture",
+    question:
+      "A guest asks about the otaku subculture and how it went from stigmatized to mainstream. How do you explain this cultural shift?",
+  },
+
+  // ── transport (10) ──
+  // beginner
+  {
+    id: "q091",
+    level: "beginner",
+    category: "transport",
+    question:
+      "A guest asks how to buy a train ticket. How do you explain the basic steps?",
+  },
+  {
+    id: "q092",
+    level: "beginner",
+    category: "transport",
+    question:
+      "Your guest wants to know what a Suica card is and how to use it. How do you explain it simply?",
+  },
+  {
+    id: "q093",
+    level: "beginner",
+    category: "transport",
+    question:
+      "A guest asks about the Shinkansen. How do you describe what makes it special?",
+  },
+  // intermediate
+  {
+    id: "q094",
+    level: "intermediate",
+    category: "transport",
+    question:
+      "A guest asks how the Shinkansen manages to stay so punctual. How do you explain the system behind Japan's bullet trains?",
+  },
+  {
+    id: "q095",
+    level: "intermediate",
+    category: "transport",
+    question:
+      "Your guest is confused by Suica, PASMO, and ICOCA cards. How do you explain the IC card system clearly?",
+  },
+  {
+    id: "q096",
+    level: "intermediate",
+    category: "transport",
+    question:
+      "A guest asks why Japan has so many different railway companies. How do you explain the system?",
+  },
+  {
+    id: "q097",
+    level: "intermediate",
+    category: "transport",
+    question:
+      "Your guest asks about the Japan Rail Pass. How do you explain when it's worth buying and how to use it?",
+  },
+  // advanced
+  {
+    id: "q098",
+    level: "advanced",
+    category: "transport",
+    question:
+      "A guest asks about Japan's approach to public transportation and why car ownership is less common in cities. How do you explain the urban design philosophy?",
+  },
+  {
+    id: "q099",
+    level: "advanced",
+    category: "transport",
+    question:
+      "Your guest asks why Japanese trains are so clean and orderly compared to other countries. How do you connect this to broader cultural values?",
+  },
+  {
+    id: "q100",
+    level: "advanced",
+    category: "transport",
+    question:
+      "A guest asks about the future of Japan's transportation — maglev trains, autonomous vehicles, and flying taxis. How do you discuss Japan's vision for mobility?",
+  },
 ];
 
 // ── Spanish Question Pool ──
@@ -827,6 +1127,306 @@ export const QUESTION_POOL_ES: PushQuestion[] = [
     category: "grammar_practice",
     question:
       "スペイン語の慣用表現（modismos）を5つ使って、短い物語を書いてみてください。",
+  },
+
+  // ── history (10) ──
+  // beginner
+  {
+    id: "es_q049",
+    level: "beginner",
+    category: "history",
+    question:
+      "「侍」とは何かをスペイン語で簡単に説明してみてください。",
+  },
+  {
+    id: "es_q050",
+    level: "beginner",
+    category: "history",
+    question:
+      "日本のお城を見たゲストに、お城の役割をスペイン語で簡単に紹介してください。",
+  },
+  {
+    id: "es_q051",
+    level: "beginner",
+    category: "history",
+    question:
+      "「忍者」について興味を持ったゲストに、スペイン語で簡単に説明してください。",
+  },
+  // intermediate
+  {
+    id: "es_q052",
+    level: "intermediate",
+    category: "history",
+    question:
+      "明治維新による日本の近代化をスペイン語で説明してください。",
+  },
+  {
+    id: "es_q053",
+    level: "intermediate",
+    category: "history",
+    question:
+      "日本のお城の特徴を、スペインの城と比較しながらスペイン語で説明してください。",
+  },
+  {
+    id: "es_q054",
+    level: "intermediate",
+    category: "history",
+    question:
+      "芸者の伝統について、よくある誤解を正しながらスペイン語で説明してください。",
+  },
+  {
+    id: "es_q055",
+    level: "intermediate",
+    category: "history",
+    question:
+      "江戸時代の暮らしと文化について、興味を引くようにスペイン語で紹介してください。",
+  },
+  // advanced
+  {
+    id: "es_q056",
+    level: "advanced",
+    category: "history",
+    question:
+      "侍の武士道精神が現代の日本社会にどう影響しているか、スペイン語で論じてください。",
+  },
+  {
+    id: "es_q057",
+    level: "advanced",
+    category: "history",
+    question:
+      "日本の鎖国政策（sakoku）が独自の文化形成にどう寄与したか、スペイン語で説明してください。",
+  },
+  {
+    id: "es_q058",
+    level: "advanced",
+    category: "history",
+    question:
+      "スペインの「レコンキスタ」と日本の「戦国時代」を比較しながら、両国の統一過程をスペイン語で論じてください。",
+  },
+
+  // ── seasonal_events (10) ──
+  // beginner
+  {
+    id: "es_q059",
+    level: "beginner",
+    category: "seasonal_events",
+    question:
+      "日本のお正月の過ごし方をスペイン語で簡単に紹介してください。",
+  },
+  {
+    id: "es_q060",
+    level: "beginner",
+    category: "seasonal_events",
+    question:
+      "日本の夏祭りで何ができるか、スペイン語で簡単に説明してください。",
+  },
+  {
+    id: "es_q061",
+    level: "beginner",
+    category: "seasonal_events",
+    question:
+      "日本のバレンタインデーの過ごし方がスペインと違う点をスペイン語で説明してみましょう。",
+  },
+  // intermediate
+  {
+    id: "es_q062",
+    level: "intermediate",
+    category: "seasonal_events",
+    question:
+      "お盆の意味と風習をスペイン語で説明してください。メキシコの「死者の日」と比較しても構いません。",
+  },
+  {
+    id: "es_q063",
+    level: "intermediate",
+    category: "seasonal_events",
+    question:
+      "節分の豆まきの由来と楽しみ方をスペイン語で説明してください。",
+  },
+  {
+    id: "es_q064",
+    level: "intermediate",
+    category: "seasonal_events",
+    question:
+      "日本の夏祭り（盆踊り、屋台、花火）の楽しみ方をスペイン語で紹介してください。",
+  },
+  {
+    id: "es_q065",
+    level: "intermediate",
+    category: "seasonal_events",
+    question:
+      "日本のお正月の過ごし方（初詣、おせち、お年玉など）をスペイン語で詳しく紹介してください。",
+  },
+  // advanced
+  {
+    id: "es_q066",
+    level: "advanced",
+    category: "seasonal_events",
+    question:
+      "日本のクリスマスの過ごし方がスペイン語圏の国々と違う点をスペイン語で説明してください。文化的背景にも触れましょう。",
+  },
+  {
+    id: "es_q067",
+    level: "advanced",
+    category: "seasonal_events",
+    question:
+      "日本の季節感（旬の食材、行事、衣替えなど）が日常生活に与える影響をスペイン語で論じてください。",
+  },
+  {
+    id: "es_q068",
+    level: "advanced",
+    category: "seasonal_events",
+    question:
+      "スペインの「セマナ・サンタ」と日本の「お盆」を比較し、宗教的行事が社会に果たす役割をスペイン語で考察してください。",
+  },
+
+  // ── pop_culture (10) ──
+  // beginner
+  {
+    id: "es_q069",
+    level: "beginner",
+    category: "pop_culture",
+    question:
+      "好きなアニメやマンガをスペイン語で紹介してください。なぜ好きか簡単に説明しましょう。",
+  },
+  {
+    id: "es_q070",
+    level: "beginner",
+    category: "pop_culture",
+    question:
+      "日本のカラオケ文化をスペイン語で簡単に紹介してください。",
+  },
+  {
+    id: "es_q071",
+    level: "beginner",
+    category: "pop_culture",
+    question:
+      "ゲストが「かわいい」の意味を知りたがっています。スペイン語で簡単に説明してください。",
+  },
+  // intermediate
+  {
+    id: "es_q072",
+    level: "intermediate",
+    category: "pop_culture",
+    question:
+      "アニメ・マンガが世界中で人気な理由を、スペイン語で説明してください。",
+  },
+  {
+    id: "es_q073",
+    level: "intermediate",
+    category: "pop_culture",
+    question:
+      "秋葉原の見どころと楽しみ方をスペイン語で紹介してください。",
+  },
+  {
+    id: "es_q074",
+    level: "intermediate",
+    category: "pop_culture",
+    question:
+      "「かわいい」文化が日本社会に与える影響をスペイン語で説明してください。",
+  },
+  {
+    id: "es_q075",
+    level: "intermediate",
+    category: "pop_culture",
+    question:
+      "任天堂からPlayStationまで、日本のゲーム産業の歴史と影響力をスペイン語で説明してください。",
+  },
+  // advanced
+  {
+    id: "es_q076",
+    level: "advanced",
+    category: "pop_culture",
+    question:
+      "日本のアニメ・マンガが「ソフトパワー」として外交にどう貢献しているか、スペイン語で論じてください。",
+  },
+  {
+    id: "es_q077",
+    level: "advanced",
+    category: "pop_culture",
+    question:
+      "オタク文化がかつての偏見から主流文化へと変化した経緯をスペイン語で説明してください。",
+  },
+  {
+    id: "es_q078",
+    level: "advanced",
+    category: "pop_culture",
+    question:
+      "コスプレ文化の起源と日本での発展、そして世界への広がりをスペイン語で紹介してください。",
+  },
+
+  // ── transport (10) ──
+  // beginner
+  {
+    id: "es_q079",
+    level: "beginner",
+    category: "transport",
+    question:
+      "新幹線とは何か、スペイン語で簡単に説明してください。",
+  },
+  {
+    id: "es_q080",
+    level: "beginner",
+    category: "transport",
+    question:
+      "Suicaカードの使い方をスペイン語で簡単に説明してください。",
+  },
+  {
+    id: "es_q081",
+    level: "beginner",
+    category: "transport",
+    question:
+      "日本で電車に乗るときの基本的なルールをスペイン語で説明してください。",
+  },
+  // intermediate
+  {
+    id: "es_q082",
+    level: "intermediate",
+    category: "transport",
+    question:
+      "新幹線の特徴（速さ、正確さ、快適さ）をスペインのAVEと比較しながらスペイン語で説明してください。",
+  },
+  {
+    id: "es_q083",
+    level: "intermediate",
+    category: "transport",
+    question:
+      "日本に鉄道会社が複数ある理由と乗り換えのコツをスペイン語で説明してください。",
+  },
+  {
+    id: "es_q084",
+    level: "intermediate",
+    category: "transport",
+    question:
+      "Japan Rail Passの使い方とお得な活用法をスペイン語で紹介してください。",
+  },
+  {
+    id: "es_q085",
+    level: "intermediate",
+    category: "transport",
+    question:
+      "日本での自転車レンタルの利用方法と交通ルールをスペイン語で説明してください。",
+  },
+  // advanced
+  {
+    id: "es_q086",
+    level: "advanced",
+    category: "transport",
+    question:
+      "日本の公共交通機関がなぜこれほど発達しているか、都市設計の観点からスペイン語で論じてください。",
+  },
+  {
+    id: "es_q087",
+    level: "advanced",
+    category: "transport",
+    question:
+      "日本の電車がなぜ清潔で秩序正しいか、文化的価値観と結びつけてスペイン語で説明してください。",
+  },
+  {
+    id: "es_q088",
+    level: "advanced",
+    category: "transport",
+    question:
+      "リニア中央新幹線や自動運転技術など、日本の交通の未来についてスペイン語で論じてください。",
   },
 ];
 
