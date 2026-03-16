@@ -82,6 +82,7 @@ async function migrateNudgeMessages(): Promise<void> {
     "gentle_nudge",
     "strong_nudge",
     "streak_boost",
+    "comeback",
   ] as const;
 
   for (const lang of languages) {
