@@ -52,6 +52,10 @@ const CATEGORIES_EN = [
   "concept",
   "practical",
   "nature",
+  "history",
+  "seasonal_events",
+  "pop_culture",
+  "transport",
 ];
 
 const CATEGORIES_ES = [
@@ -61,6 +65,10 @@ const CATEGORIES_ES = [
   "food",
   "daily_life",
   "grammar_practice",
+  "history",
+  "seasonal_events",
+  "pop_culture",
+  "transport",
 ];
 
 const LEVELS = ["beginner", "intermediate", "advanced"];
@@ -72,6 +80,10 @@ const CATEGORY_LABELS: Record<string, string> = {
   concept: "日本の概念",
   practical: "実践",
   nature: "自然",
+  history: "歴史",
+  seasonal_events: "季節行事",
+  pop_culture: "ポップカルチャー",
+  transport: "交通",
   greetings_basics: "挨拶・基礎",
   travel: "旅行",
   culture: "文化",
