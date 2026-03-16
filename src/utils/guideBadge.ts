@@ -4,7 +4,8 @@
  * and builds a LINE Flex Message for the enhanced level check.
  */
 
-import { User } from "../types";
+import { User, SkillScores } from "../types";
+import { formatScoreDelta } from "./skillScore";
 
 // ── Badge Definitions ──
 
@@ -93,7 +94,9 @@ function buildProgressBar(percent: number): string {
 export function buildLevelCheckFlexMessage(
   user: User,
   activeDates: Set<string>,
-  todayJST: string
+  todayJST: string,
+  skillScores?: SkillScores | null,
+  previousScores?: SkillScores | null
 ): Record<string, unknown> {
   const badge = getGuideBadge(user.totalChats, user.currentStreak);
   const levelDisplay = user.englishLevel === "unset" ? "未判定" : capitalize(user.englishLevel);
@@ -213,6 +216,8 @@ export function buildLevelCheckFlexMessage(
               },
             ],
           },
+          // Skill Score section
+          ...buildSkillScoreSection(skillScores, previousScores),
         ],
       },
       styles: {
@@ -221,6 +226,112 @@ export function buildLevelCheckFlexMessage(
         },
       },
     },
+  };
+}
+
+// ── Skill Score Section ──
+
+function buildSkillScoreSection(
+  scores?: SkillScores | null,
+  previousScores?: SkillScores | null
+): Record<string, unknown>[] {
+  if (!scores) {
+    return [
+      { type: "separator", margin: "lg" },
+      {
+        type: "box",
+        layout: "vertical",
+        margin: "lg",
+        contents: [
+          {
+            type: "text",
+            text: "📊 スキルスコア",
+            size: "xs",
+            color: "#888888",
+          },
+          {
+            type: "text",
+            text: "あと数回練習するとスコアが表示されます",
+            size: "xs",
+            color: "#AAAAAA",
+            margin: "sm",
+            wrap: true,
+          },
+        ],
+      },
+    ];
+  }
+
+  const deltaText = previousScores
+    ? formatScoreDelta(scores.overall, previousScores.overall)
+    : "";
+  const headerValue = `${scores.cefrLabel} (${scores.overall}点)${deltaText ? ` ${deltaText}` : ""}`;
+
+  return [
+    { type: "separator", margin: "lg" },
+    {
+      type: "box",
+      layout: "vertical",
+      margin: "lg",
+      contents: [
+        {
+          type: "box",
+          layout: "horizontal",
+          contents: [
+            {
+              type: "text",
+              text: "📊 スキルスコア",
+              size: "xs",
+              color: "#888888",
+              flex: 4,
+            },
+            {
+              type: "text",
+              text: headerValue,
+              size: "sm",
+              color: "#111111",
+              align: "end",
+              flex: 4,
+              weight: "bold",
+            },
+          ],
+        },
+        buildScoreBar("📖", "語彙・表現", scores.vocabulary),
+        buildScoreBar("✏️", "文法正確性", scores.grammar),
+        buildScoreBar("🔥", "学習継続力", scores.consistency),
+        buildScoreBar("🎤", "実践力", scores.practical),
+      ],
+    },
+  ];
+}
+
+function buildScoreBar(
+  icon: string,
+  label: string,
+  score: number
+): Record<string, unknown> {
+  const bar = buildProgressBar(score);
+  return {
+    type: "box",
+    layout: "horizontal",
+    contents: [
+      {
+        type: "text",
+        text: `${icon} ${label}`,
+        size: "xs",
+        color: "#555555",
+        flex: 4,
+      },
+      {
+        type: "text",
+        text: `${bar}`,
+        size: "xs",
+        color: "#111111",
+        align: "end",
+        flex: 6,
+      },
+    ],
+    margin: "sm",
   };
 }
 

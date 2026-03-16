@@ -25,6 +25,7 @@ import { TargetLanguage, getLangStrings } from "../config/languages";
 import { User } from "../types";
 import { getWeekActivityDates } from "../services/firestore";
 import { buildLevelCheckFlexMessage } from "../utils/guideBadge";
+import { calculateSkillScores } from "../utils/skillScore";
 
 export async function handleTextChat(
   userId: string,
@@ -43,12 +44,31 @@ export async function handleTextChat(
       user = (await getUser(userId, lang))!;
     }
 
-    // 2a. レベル確認コマンド → Flex Message
+    // 2a. レベル確認コマンド → Flex Message + スキルスコア算出
     if (text === strings.commands.levelCheck) {
       const sevenDaysAgo = Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const activeDates = await getWeekActivityDates(userId, sevenDaysAgo, lang);
+      const [activeDates, recentLogsForScore] = await Promise.all([
+        getWeekActivityDates(userId, sevenDaysAgo, lang),
+        getRecentChatLogs(userId, 20, lang),
+      ]);
       const todayJST = getTodayJST();
-      const flexMessage = buildLevelCheckFlexMessage(user, activeDates, todayJST);
+
+      // Calculate skill scores
+      const newScores = calculateSkillScores(user, recentLogsForScore);
+      if (newScores) {
+        await updateUser(userId, {
+          previousSkillScores: user.skillScores ?? null,
+          skillScores: newScores,
+        } as Partial<User>, lang);
+      }
+
+      const flexMessage = buildLevelCheckFlexMessage(
+        user,
+        activeDates,
+        todayJST,
+        newScores,
+        user.skillScores // previous scores (before this calculation)
+      );
       await replyFlexMessage(replyToken, flexMessage, lang);
       return;
     }
