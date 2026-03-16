@@ -18,7 +18,8 @@
 import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 
-admin.initializeApp();
+const projectId = process.env.GCP_PROJECT_ID || "ai-english-coach-bot";
+admin.initializeApp({ projectId });
 const db = admin.firestore();
 
 // Fields that incrementDailyStat writes with dot notation
