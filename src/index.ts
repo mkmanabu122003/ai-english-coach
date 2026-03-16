@@ -1,4 +1,5 @@
 import { onRequest, Request } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { Response } from "express";
 import { initializeFirestore } from "./services/firestore";
 import { createWebhookHandler } from "./handlers/webhook";
@@ -108,6 +109,7 @@ export const churnDetection = onRequest(
 
 // ── Daily Stats Batch ──
 
+// HTTP endpoint for manual trigger
 export const dailyStats = onRequest(
   {
     region: "asia-northeast1",
@@ -122,5 +124,20 @@ export const dailyStats = onRequest(
     }
     await generateDailyStats();
     res.status(200).send("OK");
+  }
+);
+
+// Scheduled: run daily at 00:05 JST (15:05 UTC)
+export const scheduledDailyStats = onSchedule(
+  {
+    schedule: "5 0 * * *",
+    timeZone: "Asia/Tokyo",
+    region: "asia-northeast1",
+    timeoutSeconds: 540,
+    memory: "512MiB",
+    maxInstances: 1,
+  },
+  async () => {
+    await generateDailyStats();
   }
 );
