@@ -9,7 +9,7 @@ import {
 } from "../services/firestore";
 import { pushText } from "../services/line";
 import { chatCompletion } from "../services/openai";
-import { buildReportPrompt } from "../prompts/reportPrompt";
+import { buildReportPrompt, buildReportWithLearningsPrompt } from "../prompts/reportPrompt";
 import {
   getNudgeMessage,
   pickQuestion,
@@ -230,6 +230,13 @@ async function sendWeeklyReport(user: User, lang: TargetLanguage): Promise<void>
         ? topics.slice(-5).join(", ")
         : "なし";
 
+    // 添削履歴を抽出（📝マーカーを含むAI応答 = 添削あり）
+    const corrections = logs
+      .filter((log) => log.aiResponse && log.aiResponse.includes("📝"))
+      .slice(-10) // 最新10件まで
+      .map((log) => log.aiResponse.slice(0, 200)) // 各200文字まで
+      .join("\n---\n");
+
     // 施策3: FreeユーザーにはAI生成コメントなしの簡易レポート
     let reportText: string;
     if (user.plan === "free") {
@@ -237,20 +244,31 @@ async function sendWeeklyReport(user: User, lang: TargetLanguage): Promise<void>
         strings.weeklyReportHeader(textCount, voiceCount, activeDays, user.currentStreak) +
         strings.weeklyReportFreeFooter;
     } else {
-      // ProユーザーにはAI生成コメント付きレポート
-      const prompt = buildReportPrompt({
-        displayName: user.displayName,
-        textCount,
-        voiceCount,
-        activeDays,
-        currentStreak: user.currentStreak,
-        topTopics,
-      }, lang);
+      // ProユーザーにはAI生成コメント + 学びTOP3付きレポート
+      const hasCorrections = corrections.length > 0;
+      const prompt = hasCorrections
+        ? buildReportWithLearningsPrompt({
+            displayName: user.displayName,
+            textCount,
+            voiceCount,
+            activeDays,
+            currentStreak: user.currentStreak,
+            topTopics,
+            corrections,
+          }, lang)
+        : buildReportPrompt({
+            displayName: user.displayName,
+            textCount,
+            voiceCount,
+            activeDays,
+            currentStreak: user.currentStreak,
+            topTopics,
+          }, lang);
 
       const startMs = Date.now();
       const result = await chatCompletion(
         [{ role: "user", content: prompt }],
-        200
+        hasCorrections ? 400 : 200
       );
       const latencyMs = Date.now() - startMs;
 
@@ -264,9 +282,21 @@ async function sendWeeklyReport(user: User, lang: TargetLanguage): Promise<void>
         latencyMs,
       });
 
-      reportText =
-        strings.weeklyReportHeader(textCount, voiceCount, activeDays, user.currentStreak) +
-        result.text;
+      // Parse the structured response
+      const header = strings.weeklyReportHeader(textCount, voiceCount, activeDays, user.currentStreak);
+      if (hasCorrections && result.text.includes("---COMMENT---")) {
+        const commentMatch = result.text.match(/---COMMENT---\s*([\s\S]*?)---LEARNINGS---/);
+        const learningsMatch = result.text.match(/---LEARNINGS---\s*([\s\S]*?)$/);
+        const comment = commentMatch ? commentMatch[1].trim() : result.text;
+        const learnings = learningsMatch ? learningsMatch[1].trim() : "";
+
+        reportText = header + comment;
+        if (learnings && learnings !== "添削データなし") {
+          reportText += `\n\n📝 今週の学びTOP3\n${learnings}`;
+        }
+      } else {
+        reportText = header + result.text;
+      }
     }
 
     await pushText(user.lineUserId, reportText, lang);

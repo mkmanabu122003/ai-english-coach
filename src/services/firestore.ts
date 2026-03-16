@@ -129,6 +129,28 @@ export async function getWeeklyChatLogs(
   return snap.docs.map((doc) => doc.data() as ChatLog);
 }
 
+export async function getWeekActivityDates(
+  userId: string,
+  since: Timestamp,
+  lang: TargetLanguage = "en"
+): Promise<Set<string>> {
+  const snap = await chatLogsRef(userId, lang)
+    .where("createdAt", ">=", since)
+    .orderBy("createdAt", "asc")
+    .get();
+  const dates = new Set<string>();
+  for (const doc of snap.docs) {
+    const log = doc.data() as ChatLog;
+    if (log.createdAt) {
+      // Convert to JST date string
+      const ms = log.createdAt.toMillis();
+      const jstDate = new Date(ms + 9 * 60 * 60 * 1000);
+      dates.add(jstDate.toISOString().slice(0, 10));
+    }
+  }
+  return dates;
+}
+
 export async function saveWeeklyReport(
   userId: string,
   weekId: string,
