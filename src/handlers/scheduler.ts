@@ -18,6 +18,7 @@ import {
 import { getCurrentHourJST, getTodayJST, getWeekId } from "../utils/dateUtils";
 import { PUSH_BATCH_SIZE, PUSH_BATCH_DELAY_MS, INACTIVE_ALERT_DAYS } from "../config/constants";
 import { TargetLanguage, getLangStrings } from "../config/languages";
+import { calculateSkillScores, formatScoreDelta } from "../utils/skillScore";
 import { User } from "../types";
 
 function sleep(ms: number): Promise<void> {
@@ -297,6 +298,21 @@ async function sendWeeklyReport(user: User, lang: TargetLanguage): Promise<void>
       } else {
         reportText = header + result.text;
       }
+    }
+
+    // スキルスコア算出・追記（Pro/Free共通）
+    const newScores = calculateSkillScores(user, logs);
+    if (newScores) {
+      const scoreUpdates: Partial<User> = {
+        previousSkillScores: user.skillScores ?? undefined,
+        skillScores: newScores,
+      };
+      await updateUser(user.lineUserId, scoreUpdates, lang);
+
+      const delta = user.skillScores
+        ? ` ${formatScoreDelta(newScores.overall, user.skillScores.overall)}`
+        : "";
+      reportText += `\n\n📊 スキルスコア: ${newScores.cefrLabel} (${newScores.overall}点)${delta}`;
     }
 
     await pushText(user.lineUserId, reportText, lang);

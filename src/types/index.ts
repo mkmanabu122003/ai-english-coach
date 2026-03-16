@@ -38,6 +38,18 @@ export interface LastPushQuestion {
   answered: boolean;
 }
 
+// ── Skill Scores ──
+
+export interface SkillScores {
+  vocabulary: number; // 0-100
+  grammar: number; // 0-100
+  consistency: number; // 0-100
+  practical: number; // 0-100
+  overall: number; // 0-100 (weighted average)
+  cefrLabel: string; // "A1" | "A2" | "B1" | "B2" | "C1"
+  calculatedAt: Timestamp;
+}
+
 // ── User ──
 
 export interface User {
@@ -64,6 +76,8 @@ export interface User {
   planHistory: PlanHistoryEntry[];
   interventions: InterventionEntry[];
   lastPushQuestion?: LastPushQuestion;
+  skillScores?: SkillScores;
+  previousSkillScores?: SkillScores;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
