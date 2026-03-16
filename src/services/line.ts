@@ -64,6 +64,18 @@ export async function replyText(
   });
 }
 
+export async function replyFlexMessage(
+  replyToken: string,
+  flexMessage: Record<string, unknown>,
+  lang: TargetLanguage = "en"
+): Promise<void> {
+  const api = await getClient(lang);
+  await api.replyMessage({
+    replyToken,
+    messages: [flexMessage as never],
+  });
+}
+
 export async function pushText(
   userId: string,
   text: string,

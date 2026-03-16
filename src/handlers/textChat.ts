@@ -8,7 +8,7 @@ import {
   getRecentChatLogs,
   incrementDailyStat,
 } from "../services/firestore";
-import { getProfile, replyText } from "../services/line";
+import { getProfile, replyText, replyFlexMessage } from "../services/line";
 import { chatCompletion } from "../services/openai";
 import { buildSystemPrompt, extractLevel, shouldReassessLevel } from "../prompts/systemPrompt";
 import { withErrorHandling } from "../middleware/errorHandler";
@@ -23,6 +23,8 @@ import {
 } from "../config/constants";
 import { TargetLanguage, getLangStrings } from "../config/languages";
 import { User } from "../types";
+import { getWeekActivityDates } from "../services/firestore";
+import { buildLevelCheckFlexMessage } from "../utils/guideBadge";
 
 export async function handleTextChat(
   userId: string,
@@ -41,7 +43,17 @@ export async function handleTextChat(
       user = (await getUser(userId, lang))!;
     }
 
-    // 2. 日本語コマンド判定（完全一致）
+    // 2a. レベル確認コマンド → Flex Message
+    if (text === strings.commands.levelCheck) {
+      const sevenDaysAgo = Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const activeDates = await getWeekActivityDates(userId, sevenDaysAgo, lang);
+      const todayJST = getTodayJST();
+      const flexMessage = buildLevelCheckFlexMessage(user, activeDates, todayJST);
+      await replyFlexMessage(replyToken, flexMessage, lang);
+      return;
+    }
+
+    // 2b. 日本語コマンド判定（完全一致）
     const commandResult = handleCommand(text, user, lang);
     if (commandResult !== null) {
       if (commandResult.updates) {
